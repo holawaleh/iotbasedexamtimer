@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+@theme {
+  /* Main dark background */
+  --color-primary-dark: #1a1f2b;
+  /* Graduation cap purple */
+  --color-accent-purple: #8b5cf6;
+  /* Button indigo */
+  --color-button-bg: #312e81;
+  /* Button border */
+  --color-button-border: #6366f1;
+}
+
+/* Ensure the background color applies to the whole page */
+body {
+  @apply bg-primary-dark;
+  margin: 0;
+  font-family: sans-serif;
+}
