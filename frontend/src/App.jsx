@@ -17,7 +17,8 @@ function App() {
   const [examConfig, setConfig] = useState({
     courseCode: "COM 412",
     timerValue: "02:00:00",
-    examDate: "2026-04-05"
+    examDate: "2026-04-05",
+    scheduledStartTime: "09:00"
   });
 
   return (
