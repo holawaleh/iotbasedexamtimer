@@ -7,6 +7,7 @@ env/
 
 db.sqlite3
 .env
+staticfiles/
 
 node_modules/
 dist/
