@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import sys
 import urllib.parse
 
 from dotenv import load_dotenv
@@ -82,6 +83,12 @@ if DATABASE_URL:
     query_params = dict(urllib.parse.parse_qsl(parsed_url.query))
     if query_params:
         DATABASES["default"]["OPTIONS"] = query_params
+
+if "test" in sys.argv:
+    DATABASES["default"] = {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "test.sqlite3",
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

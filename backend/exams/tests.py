@@ -66,3 +66,28 @@ class DisplaySessionApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["course"], "COM 412")
         self.assertEqual(response.data["status"], "ACTIVE")
+
+    def test_signup_creates_staff_user(self):
+        public_client = APIClient()
+
+        response = public_client.post(
+            reverse("auth-signup"),
+            {
+                "username": "newadmin",
+                "email": "newadmin@example.com",
+                "password": "StrongPass123!",
+                "password_confirm": "StrongPass123!",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        user = get_user_model().objects.get(username="newadmin")
+        self.assertTrue(user.is_staff)
+        self.assertFalse(user.is_superuser)
+
+    def test_auth_me_returns_current_user(self):
+        response = self.client.get(reverse("auth-me"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["username"], "admin")

@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
+import { getCurrentUser } from './api/client';
 import DashboardLayout from './components/layouts/DashboardLayout';
 import BrandSection from './components/Landing/BrandSection';
 import AuthSection from './components/Landing/AuthSection';
@@ -29,9 +30,11 @@ function App() {
     const saved = localStorage.getItem('examTimerTokens');
     return saved ? JSON.parse(saved) : null;
   });
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [examConfig, setConfig] = useState(initialConfig);
 
-  const isLoggedIn = Boolean(tokens?.access);
+  const isLoggedIn = Boolean(tokens?.access && currentUser);
   const apiToken = tokens?.access;
   const activeTimerCount = examConfig.sessionId ? '01/04' : '00/04';
 
@@ -49,7 +52,47 @@ function App() {
   const handleLogout = () => {
     localStorage.removeItem('examTimerTokens');
     setTokens(null);
+    setCurrentUser(null);
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function verifyToken() {
+      if (!tokens?.access) {
+        setCurrentUser(null);
+        setAuthChecked(true);
+        return;
+      }
+
+      try {
+        const user = await getCurrentUser(tokens.access);
+        if (isMounted) {
+          setCurrentUser(user);
+          setAuthChecked(true);
+        }
+      } catch {
+        if (isMounted) {
+          handleLogout();
+          setAuthChecked(true);
+        }
+      }
+    }
+
+    verifyToken();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [tokens?.access]);
+
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center text-slate-600 font-bold">
+        Connecting to backend...
+      </div>
+    );
+  }
 
   return (
     <Router>
@@ -88,7 +131,9 @@ function App() {
             isLoggedIn ? (
               <DashboardLayout pageTitle="System Overview" onLogout={handleLogout}>
                 <header className="mb-8">
-                  <h1 className="text-3xl font-bold text-slate-800">Hello, Administrator</h1>
+                  <h1 className="text-3xl font-bold text-slate-800">
+                    Hello, {currentUser?.username || 'Administrator'}
+                  </h1>
                 </header>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                   <StatCard title="Active Timers" value={activeTimerCount} icon="Timer" color="bg-purple-600" />

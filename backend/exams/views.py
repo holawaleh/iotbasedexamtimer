@@ -12,6 +12,7 @@ from .serializers import (
     DisplayLogSerializer,
     ExaminationSessionSerializer,
     HallSerializer,
+    SignupSerializer,
 )
 
 
@@ -92,6 +93,38 @@ class DisplayLogViewSet(viewsets.ReadOnlyModelViewSet):
         if hall:
             queryset = queryset.filter(Q(hall__code=hall) | Q(hall__device_id=hall))
         return queryset
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def authenticated_user(request):
+    user = request.user
+    return Response(
+        {
+            "id": user.id,
+            "username": user.get_username(),
+            "email": user.email,
+            "is_staff": user.is_staff,
+            "is_superuser": user.is_superuser,
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def signup(request):
+    serializer = SignupSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = serializer.save()
+    return Response(
+        {
+            "id": user.id,
+            "username": user.get_username(),
+            "email": user.email,
+            "is_staff": user.is_staff,
+        },
+        status=status.HTTP_201_CREATED,
+    )
 
 
 @api_view(["GET"])

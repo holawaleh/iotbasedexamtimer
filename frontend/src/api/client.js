@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://iotbasedexamtimer.onrender.com/api';
 
 async function request(path, { token, method = 'GET', body } = {}) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -20,11 +20,29 @@ async function request(path, { token, method = 'GET', body } = {}) {
   return data;
 }
 
+export { API_BASE_URL };
+
 export function login(username, password) {
   return request('/token/', {
     method: 'POST',
     body: { username, password },
   });
+}
+
+export function signup({ username, email, password, passwordConfirm }) {
+  return request('/auth/signup/', {
+    method: 'POST',
+    body: {
+      username,
+      email,
+      password,
+      password_confirm: passwordConfirm,
+    },
+  });
+}
+
+export function getCurrentUser(token) {
+  return request('/auth/me/', { token });
 }
 
 export function getHalls(token) {
