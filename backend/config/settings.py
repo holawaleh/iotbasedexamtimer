@@ -15,9 +15,19 @@ def csv_env(name, default=""):
     return [item.strip() for item in value.split(",") if item.strip()]
 
 
+DEFAULT_ALLOWED_HOSTS = (
+    "localhost,127.0.0.1,iotbasedexamtimer.onrender.com,"
+    ".onrender.com,.vercel.app"
+)
+DEFAULT_FRONTEND_ORIGINS = (
+    "http://localhost:5173,http://127.0.0.1:5173,"
+    "https://iotbasedexamtimer.vercel.app"
+)
+
+
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = os.getenv("DJANGO_DEBUG", "true").lower() == "true"
-ALLOWED_HOSTS = csv_env("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1")
+ALLOWED_HOSTS = csv_env("DJANGO_ALLOWED_HOSTS", DEFAULT_ALLOWED_HOSTS)
 
 INSTALLED_APPS = [
     "django.contrib.admin",
@@ -116,12 +126,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 CORS_ALLOWED_ORIGINS = csv_env(
     "CORS_ALLOWED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173",
+    DEFAULT_FRONTEND_ORIGINS,
 )
 CORS_ALLOW_CREDENTIALS = True
 CSRF_TRUSTED_ORIGINS = csv_env(
     "CSRF_TRUSTED_ORIGINS",
-    "http://localhost:5173,http://127.0.0.1:5173",
+    DEFAULT_FRONTEND_ORIGINS,
 )
 
 REST_FRAMEWORK = {

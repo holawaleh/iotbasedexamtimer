@@ -1,12 +1,14 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://iotbasedexamtimer.onrender.com/api';
 
 async function request(path, { token, method = 'GET', body } = {}) {
+  const headers = {
+    ...(body ? { 'Content-Type': 'application/json' } : {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   });
 
@@ -28,7 +30,6 @@ export async function healthCheck() {
   } catch {
     const response = await fetch(`${API_BASE_URL}/token/`, {
       method: 'OPTIONS',
-      headers: { 'Content-Type': 'application/json' },
     });
 
     if (!response.ok) {
