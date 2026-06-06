@@ -1,28 +1,91 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { createHall, createSession, getHalls } from '../../api/client';
 
-const Settings = ({ config, setConfig }) => {
+const timeToSeconds = (value) => {
+  const [h, m, s] = value.split(':').map(Number);
+  return h * 3600 + m * 60 + s;
+};
+
+const buildStartTime = (date, time) => {
+  const safeDate = date || new Date().toISOString().slice(0, 10);
+  const safeTime = time || '09:00';
+  return new Date(`${safeDate}T${safeTime}:00`).toISOString();
+};
+
+const Settings = ({ config, setConfig, token }) => {
+  const [statusMessage, setStatusMessage] = useState('');
+  const [error, setError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setConfig({ ...config, [name]: value });
   };
 
-  // Parse timer value to get individual hours, minutes, seconds
   const parseTimerValue = () => {
     const [h, m, s] = config.timerValue.split(':').map(Number);
     return { h, m, s };
   };
 
-  // Handle time unit changes (hours, minutes, seconds)
   const handleTimeChange = (unit, value) => {
     const { h, m, s } = parseTimerValue();
-    let newH = h, newM = m, newS = s;
-    
-    if (unit === 'hours') newH = Math.max(0, Math.min(23, parseInt(value) || 0));
-    if (unit === 'minutes') newM = Math.max(0, Math.min(59, parseInt(value) || 0));
-    if (unit === 'seconds') newS = Math.max(0, Math.min(59, parseInt(value) || 0));
-    
+    let newH = h;
+    let newM = m;
+    let newS = s;
+
+    if (unit === 'hours') newH = Math.max(0, Math.min(23, parseInt(value, 10) || 0));
+    if (unit === 'minutes') newM = Math.max(0, Math.min(59, parseInt(value, 10) || 0));
+    if (unit === 'seconds') newS = Math.max(0, Math.min(59, parseInt(value, 10) || 0));
+
     const formatted = `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}:${String(newS).padStart(2, '0')}`;
     setConfig({ ...config, timerValue: formatted });
+  };
+
+  const findOrCreateHall = async () => {
+    const halls = await getHalls(token);
+    const existingHall = halls.find(
+      (hall) => hall.code === config.hallCode || hall.device_id === config.deviceId,
+    );
+
+    if (existingHall) return existingHall;
+
+    return createHall(token, {
+      name: config.hallName,
+      code: config.hallCode,
+      device_id: config.deviceId,
+      is_active: true,
+    });
+  };
+
+  const handleSaveSession = async () => {
+    setError('');
+    setStatusMessage('');
+    setIsSaving(true);
+
+    try {
+      const hall = await findOrCreateHall();
+      const session = await createSession(token, {
+        course_code: config.courseCode,
+        course_title: config.courseTitle,
+        hall: hall.id,
+        start_time: buildStartTime(config.examDate, config.scheduledStartTime),
+        duration_seconds: timeToSeconds(config.timerValue),
+        status: 'SCHEDULED',
+      });
+
+      setConfig({
+        ...config,
+        hallId: hall.id,
+        sessionId: session.id,
+        backendStatus: 'Session saved',
+        mqttStatus: 'Waiting',
+      });
+      setStatusMessage(`Session ${session.id} saved for ${hall.name}.`);
+    } catch (err) {
+      setError(err.message || 'Could not save session');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -30,11 +93,49 @@ const Settings = ({ config, setConfig }) => {
       <div className="bg-white border border-slate-200 rounded-4xl p-8 shadow-sm">
         <header className="mb-8">
           <h2 className="text-2xl font-bold text-slate-800">Exam Settings</h2>
-          <p className="text-slate-500 text-sm">Update the IoT display parameters here.</p>
+          <p className="text-slate-500 text-sm">Create the cloud session the ESP32 display will receive.</p>
         </header>
 
         <div className="space-y-6">
-          {/* Course Code */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
+                Hall Name
+              </label>
+              <input
+                type="text"
+                name="hallName"
+                value={config.hallName}
+                onChange={handleChange}
+                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-bold text-slate-700 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
+                Hall Code
+              </label>
+              <input
+                type="text"
+                name="hallCode"
+                value={config.hallCode}
+                onChange={handleChange}
+                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-bold text-slate-700 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
+                Device ID
+              </label>
+              <input
+                type="text"
+                name="deviceId"
+                value={config.deviceId}
+                onChange={handleChange}
+                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-bold text-slate-700 transition-all"
+              />
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
               Course Code
@@ -49,10 +150,23 @@ const Settings = ({ config, setConfig }) => {
             />
           </div>
 
-          {/* Countdown Duration - Time Picker with separate H/M/S */}
+          <div>
+            <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
+              Course Title
+            </label>
+            <input
+              type="text"
+              name="courseTitle"
+              value={config.courseTitle}
+              onChange={handleChange}
+              placeholder="Optional"
+              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-bold text-slate-700 transition-all"
+            />
+          </div>
+
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">
-              Timer Duration (Hours : Minutes : Seconds)
+              Timer Duration
             </label>
             <div className="flex gap-3">
               <div className="flex-1">
@@ -91,7 +205,6 @@ const Settings = ({ config, setConfig }) => {
             </div>
           </div>
 
-          {/* Exam Date - Date Picker */}
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
               Examination Date
@@ -105,10 +218,9 @@ const Settings = ({ config, setConfig }) => {
             />
           </div>
 
-          {/* Scheduled Start Time - to auto-start timer */}
           <div>
             <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
-              Scheduled Start Time (Auto-start)
+              Scheduled Start Time
             </label>
             <input
               type="time"
@@ -116,17 +228,29 @@ const Settings = ({ config, setConfig }) => {
               value={config.scheduledStartTime || ''}
               onChange={handleChange}
               className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-bold text-slate-700 transition-all cursor-pointer"
-              placeholder="HH:MM"
             />
-            <p className="text-xs text-slate-500 mt-2">Timer will auto-start when current time matches this time.</p>
           </div>
         </div>
 
-        <div className="mt-8 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-          <p className="text-xs text-emerald-700 font-bold flex items-center gap-2">
-            <span>✅</span> Interface updated to native scrollers.
-          </p>
-        </div>
+        {error && (
+          <div className="mt-6 p-4 bg-red-50 rounded-2xl border border-red-100">
+            <p className="text-sm text-red-600 font-bold">{error}</p>
+          </div>
+        )}
+
+        {statusMessage && (
+          <div className="mt-6 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+            <p className="text-sm text-emerald-700 font-bold">{statusMessage}</p>
+          </div>
+        )}
+
+        <button
+          onClick={handleSaveSession}
+          disabled={isSaving}
+          className="mt-8 w-full bg-brand-purple text-white font-bold py-4 rounded-2xl hover:brightness-110 transition-all active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {isSaving ? 'Saving Session...' : 'Save Cloud Session'}
+        </button>
       </div>
     </div>
   );

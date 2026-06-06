@@ -1,10 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 
-const Sidebar = () => {
+const Sidebar = ({ onLogout }) => {
   const menuItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: '🏠' },
-    { name: 'Settings', path: '/settings', icon: '⚙️' },
+    { name: 'Dashboard', path: '/dashboard', icon: 'Grid' },
+    { name: 'Settings', path: '/settings', icon: 'Gear' },
   ];
 
   return (
@@ -19,20 +19,28 @@ const Sidebar = () => {
           <NavLink
             key={item.name}
             to={item.path}
-            className={({ isActive }) => 
+            className={({ isActive }) =>
               `w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-medium ${
-                isActive 
-                  ? 'bg-brand-purple text-white shadow-lg' 
+                isActive
+                  ? 'bg-brand-purple text-white shadow-lg'
                   : 'text-slate-400 hover:bg-white/5 hover:text-white'
               }`
             }
           >
-            <span className="text-xl">{item.icon}</span>
+            <span className="text-xs font-black uppercase tracking-widest">{item.icon}</span>
             {item.name}
           </NavLink>
         ))}
       </nav>
-      {/* ... logout button ... */}
+
+      <div className="p-4 border-t border-white/10">
+        <button
+          onClick={onLogout}
+          className="w-full px-4 py-3 rounded-xl text-left font-semibold text-slate-300 hover:bg-white/5 hover:text-white transition-all cursor-pointer"
+        >
+          Logout
+        </button>
+      </div>
     </aside>
   );
 };
