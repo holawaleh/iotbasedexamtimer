@@ -85,6 +85,8 @@ class DisplaySessionApiTests(TestCase):
         user = get_user_model().objects.get(username="newadmin")
         self.assertTrue(user.is_staff)
         self.assertFalse(user.is_superuser)
+        self.assertIn("access", response.data)
+        self.assertIn("refresh", response.data)
 
     def test_auth_me_returns_current_user(self):
         response = self.client.get(reverse("auth-me"))

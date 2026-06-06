@@ -1,5 +1,17 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://iotbasedexamtimer.onrender.com/api';
 
+function collectErrorMessages(value) {
+  if (!value) return [];
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) return value.flatMap(collectErrorMessages);
+  if (typeof value === 'object') {
+    return Object.entries(value).flatMap(([key, item]) =>
+      collectErrorMessages(item).map((message) => `${key}: ${message}`),
+    );
+  }
+  return [String(value)];
+}
+
 async function request(path, { token, method = 'GET', body } = {}) {
   const headers = {
     ...(body ? { 'Content-Type': 'application/json' } : {}),
@@ -15,7 +27,11 @@ async function request(path, { token, method = 'GET', body } = {}) {
   const data = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const message = data.detail || data.non_field_errors?.[0] || 'Request failed';
+    const message =
+      data.detail ||
+      data.non_field_errors?.[0] ||
+      collectErrorMessages(data).join(' ') ||
+      'Request failed';
     throw new Error(message);
   }
 

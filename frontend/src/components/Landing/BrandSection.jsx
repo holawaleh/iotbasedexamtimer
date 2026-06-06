@@ -3,12 +3,12 @@ import React from 'react';
 // We use { title, subtitle } to destructure the props object immediately
 const BrandSection = ({ title, subtitle }) => {
   return (
-    <div className="h-full bg-brand-navy flex flex-col items-center justify-center text-center p-10 border-r border-white/10">
+    <div className="relative w-full bg-brand-navy flex flex-col items-center justify-center text-center p-6 sm:p-8 lg:p-10 border border-white/10 min-h-[280px] lg:min-h-[520px] overflow-hidden">
       
       {/* 🎓 Graduation Cap Icon */}
-      <div className="mb-8">
+      <div className="mb-5 sm:mb-8">
         <svg 
-          className="w-24 h-24 text-brand-purple mx-auto drop-shadow-[0_0_15px_rgba(139,92,246,0.3)]" 
+          className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 text-brand-purple mx-auto drop-shadow-[0_0_15px_rgba(139,92,246,0.3)]" 
           fill="currentColor" 
           viewBox="0 0 24 24"
         >
@@ -18,12 +18,12 @@ const BrandSection = ({ title, subtitle }) => {
       </div>
 
       {/* 🏷️ Dynamic Title from Props */}
-      <h1 className="text-white text-4xl lg:text-5xl font-bold mb-6 tracking-tight leading-tight">
+      <h1 className="text-white text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6 tracking-tight leading-tight max-w-full break-words">
         {title}
       </h1>
 
       {/* 📄 Dynamic Subtitle from Props */}
-      <p className="text-slate-400 text-lg max-w-md mx-auto font-medium">
+      <p className="text-slate-400 text-base sm:text-lg max-w-md mx-auto font-medium break-words">
         {subtitle}
       </p>
 

@@ -45,8 +45,10 @@ const AuthSection = ({ onLoginSuccess }) => {
 
     try {
       if (isSignup) {
-        await signup({ username, email, password, passwordConfirm });
-        setSuccess('Account created. Signing you in now...');
+        const tokens = await signup({ username, email, password, passwordConfirm });
+        setSuccess('Account created.');
+        onLoginSuccess(tokens);
+        return;
       }
 
       const tokens = await login(username, password);
@@ -59,7 +61,7 @@ const AuthSection = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="h-full flex flex-col items-center justify-center p-8">
+    <div className="w-full flex flex-col items-center justify-center">
       <div className="w-full max-w-sm animate-in fade-in slide-in-from-right-4 duration-500 text-center">
         <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-left">
           <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
@@ -148,6 +150,7 @@ const AuthSection = ({ onLoginSuccess }) => {
             </label>
             <input
               type="password"
+              minLength={8}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="w-full p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-brand-purple font-semibold text-slate-700"
@@ -162,12 +165,19 @@ const AuthSection = ({ onLoginSuccess }) => {
               </label>
               <input
                 type="password"
+                minLength={8}
                 value={passwordConfirm}
                 onChange={(e) => setPasswordConfirm(e.target.value)}
                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-brand-purple font-semibold text-slate-700"
                 required
               />
             </div>
+          )}
+
+          {isSignup && (
+            <p className="text-xs font-semibold leading-relaxed text-slate-500">
+              Password must be at least 8 characters and should not be too common.
+            </p>
           )}
 
           {error && (

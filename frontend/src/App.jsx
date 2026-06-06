@@ -101,20 +101,20 @@ function App() {
           path="/"
           element={
             !isLoggedIn ? (
-              <main className="flex flex-row h-screen w-full overflow-hidden bg-white">
-                <div className="w-1/2 bg-[#0f172a] flex flex-col items-center justify-start p-6 overflow-y-auto">
-                  <div className="shrink-0">
+              <main className="flex min-h-screen w-full flex-col bg-white lg:flex-row">
+                <div className="w-full bg-[#0f172a] flex flex-col items-center justify-start p-4 sm:p-6 lg:w-1/2">
+                  <div className="w-full shrink-0">
                     <BrandSection
                       title="IOT Based Smart Examination Timing"
                       subtitle="Exam Timer Control Panel"
                     />
                   </div>
-                  <div className="mt-12 w-full flex justify-center">
+                  <div className="mt-6 w-full flex justify-center lg:mt-10">
                     <ProjectBrief />
                   </div>
                 </div>
-                <div className="w-1/2 flex items-center justify-center p-6">
-                  <div className="w-full max-w-md">
+                <div className="w-full flex items-start justify-center px-4 py-8 sm:px-6 lg:w-1/2 lg:items-center">
+                  <div className="w-full max-w-lg">
                     <AuthSection onLoginSuccess={handleLoginSuccess} />
                   </div>
                 </div>
