@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
-import { login, signup } from '../../api/client';
+import React, { useEffect, useState } from 'react';
+import { API_BASE_URL, healthCheck, login, signup } from '../../api/client';
 
 const AuthSection = ({ onLoginSuccess }) => {
-  const [showForm, setShowForm] = useState(false);
   const [mode, setMode] = useState('signin');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -11,8 +10,25 @@ const AuthSection = ({ onLoginSuccess }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [backendStatus, setBackendStatus] = useState('Checking backend...');
 
   const isSignup = mode === 'signup';
+
+  useEffect(() => {
+    let isMounted = true;
+
+    healthCheck()
+      .then(() => {
+        if (isMounted) setBackendStatus('Backend connected');
+      })
+      .catch(() => {
+        if (isMounted) setBackendStatus('Backend unavailable');
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -35,32 +51,30 @@ const AuthSection = ({ onLoginSuccess }) => {
     }
   };
 
-  if (!showForm) {
-    return (
-      <div className="h-full flex flex-col items-center justify-center p-8 text-slate-800">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-6 text-brand-navy">Welcome Back</h2>
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-brand-button border border-brand-accent text-white px-10 py-3 rounded-lg flex items-center gap-3 hover:brightness-110 transition-all cursor-pointer font-semibold shadow-lg"
-          >
-            <span aria-hidden="true">-&gt;</span> Open Dashboard Access
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="h-full flex flex-col items-center justify-center p-8">
       <div className="w-full max-w-sm animate-in fade-in slide-in-from-right-4 duration-500 text-center">
+        <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-left">
+          <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
+            API Connection
+          </p>
+          <p
+            className={`text-sm font-bold ${
+              backendStatus === 'Backend connected' ? 'text-emerald-700' : 'text-orange-600'
+            }`}
+          >
+            {backendStatus}
+          </p>
+          <p className="text-xs text-slate-500 mt-1 break-all">{API_BASE_URL}</p>
+        </div>
+
         <h2 className="text-2xl font-bold text-slate-800 mb-2">
           {isSignup ? 'Create Account' : 'Administrator Login'}
         </h2>
         <p className="text-slate-500 mb-6">
           {isSignup
-            ? 'Create a dashboard account connected to the Django API.'
-            : 'Use your backend account to enter the control panel.'}
+            ? 'Create a dashboard account using the Django API.'
+            : 'Sign in with a backend account before entering the dashboard.'}
         </p>
 
         <div className="grid grid-cols-2 rounded-lg border border-slate-200 bg-slate-50 p-1 mb-6">
@@ -162,7 +176,7 @@ const AuthSection = ({ onLoginSuccess }) => {
 
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || backendStatus === 'Backend unavailable'}
             className="w-full bg-brand-purple text-white font-bold py-4 rounded-lg hover:bg-opacity-90 transform active:scale-[0.98] transition-all shadow-md text-lg disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? 'Please wait...' : isSignup ? 'Create Account' : 'Go to Dashboard'}

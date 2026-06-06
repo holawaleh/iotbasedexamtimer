@@ -91,3 +91,11 @@ class DisplaySessionApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["username"], "admin")
+
+    def test_health_check_is_public(self):
+        public_client = APIClient()
+
+        response = public_client.get(reverse("api-health"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["status"], "ok")

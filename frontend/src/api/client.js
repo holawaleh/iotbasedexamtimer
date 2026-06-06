@@ -22,6 +22,10 @@ async function request(path, { token, method = 'GET', body } = {}) {
 
 export { API_BASE_URL };
 
+export function healthCheck() {
+  return request('/health/');
+}
+
 export function login(username, password) {
   return request('/token/', {
     method: 'POST',

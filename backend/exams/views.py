@@ -16,6 +16,12 @@ from .serializers import (
 )
 
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def health_check(request):
+    return Response({"status": "ok", "service": "iotbasedexamtimer-api"})
+
+
 class HallViewSet(viewsets.ModelViewSet):
     queryset = Hall.objects.all()
     serializer_class = HallSerializer
