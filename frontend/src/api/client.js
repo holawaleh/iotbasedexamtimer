@@ -22,8 +22,21 @@ async function request(path, { token, method = 'GET', body } = {}) {
 
 export { API_BASE_URL };
 
-export function healthCheck() {
-  return request('/health/');
+export async function healthCheck() {
+  try {
+    return await request('/health/');
+  } catch {
+    const response = await fetch(`${API_BASE_URL}/token/`, {
+      method: 'OPTIONS',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error('Backend unavailable');
+    }
+
+    return { status: 'ok', service: 'token-endpoint' };
+  }
 }
 
 export function login(username, password) {

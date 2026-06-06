@@ -11,6 +11,7 @@ const AuthSection = ({ onLoginSuccess }) => {
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [backendStatus, setBackendStatus] = useState('Checking backend...');
+  const [backendIsReachable, setBackendIsReachable] = useState(false);
 
   const isSignup = mode === 'signup';
 
@@ -19,10 +20,16 @@ const AuthSection = ({ onLoginSuccess }) => {
 
     healthCheck()
       .then(() => {
-        if (isMounted) setBackendStatus('Backend connected');
+        if (isMounted) {
+          setBackendStatus('Backend connected');
+          setBackendIsReachable(true);
+        }
       })
       .catch(() => {
-        if (isMounted) setBackendStatus('Backend unavailable');
+        if (isMounted) {
+          setBackendStatus('Backend not confirmed');
+          setBackendIsReachable(false);
+        }
       });
 
     return () => {
@@ -60,7 +67,7 @@ const AuthSection = ({ onLoginSuccess }) => {
           </p>
           <p
             className={`text-sm font-bold ${
-              backendStatus === 'Backend connected' ? 'text-emerald-700' : 'text-orange-600'
+              backendIsReachable ? 'text-emerald-700' : 'text-orange-600'
             }`}
           >
             {backendStatus}
@@ -176,7 +183,7 @@ const AuthSection = ({ onLoginSuccess }) => {
 
           <button
             type="submit"
-            disabled={isSubmitting || backendStatus === 'Backend unavailable'}
+            disabled={isSubmitting}
             className="w-full bg-brand-purple text-white font-bold py-4 rounded-lg hover:bg-opacity-90 transform active:scale-[0.98] transition-all shadow-md text-lg disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? 'Please wait...' : isSignup ? 'Create Account' : 'Go to Dashboard'}
