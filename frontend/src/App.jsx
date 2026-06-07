@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
-import { getCurrentUser } from './api/client';
+import { getCurrentUser, getActiveSessionsCount } from './api/client';
 import DashboardLayout from './components/layouts/DashboardLayout';
 import BrandSection from './components/Landing/BrandSection';
 import AuthSection from './components/Landing/AuthSection';
@@ -36,7 +36,12 @@ function App() {
 
   const isLoggedIn = Boolean(tokens?.access && currentUser);
   const apiToken = tokens?.access;
-  const activeTimerCount = examConfig.sessionId ? '01/04' : '00/04';
+  const [globalTime, setGlobalTime] = useState(() =>
+    new Date().toLocaleTimeString('en-US', { timeZone: 'Africa/Lagos', hour12: true }),
+  );
+
+  const [activeCount, setActiveCount] = useState(0);
+  const activeTimerCount = `${String(activeCount).padStart(2, '0')}/04`;
 
   const systemHealth = useMemo(() => {
     if (!examConfig.sessionId) return 'Setup';
@@ -85,6 +90,33 @@ function App() {
       isMounted = false;
     };
   }, [tokens?.access]);
+
+  useEffect(() => {
+    let stopped = false;
+    async function fetchActive() {
+      if (!apiToken) return;
+      try {
+        const data = await getActiveSessionsCount(apiToken);
+        if (!stopped) setActiveCount(Number(data.active || 0));
+      } catch (err) {
+        // ignore; keep previous count
+      }
+    }
+
+    fetchActive();
+    const iv = setInterval(fetchActive, 5000);
+    return () => {
+      stopped = true;
+      clearInterval(iv);
+    };
+  }, [apiToken]);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setGlobalTime(new Date().toLocaleTimeString('en-US', { timeZone: 'Africa/Lagos', hour12: true }));
+    }, 1000);
+    return () => clearInterval(t);
+  }, []);
 
   if (!authChecked) {
     return (
@@ -138,7 +170,7 @@ function App() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
                   <StatCard title="Active Timers" value={activeTimerCount} icon="Timer" color="bg-purple-600" />
                   <StatCard title="System Health" value={systemHealth} icon="Cloud" color="bg-blue-600" />
-                  <StatCard title="Global Time" value={examConfig.timerValue} icon="Clock" color="bg-orange-500" />
+                  <StatCard title="Global Time" value={globalTime} icon="Clock" color="bg-orange-500" />
                 </div>
                 <TimerControl config={examConfig} setConfig={setConfig} token={apiToken} />
               </DashboardLayout>

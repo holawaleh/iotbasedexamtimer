@@ -32,6 +32,12 @@ class SignupSerializer(serializers.ModelSerializer):
 
 
 class HallSerializer(serializers.ModelSerializer):
+    created_by = serializers.SerializerMethodField(read_only=True)
+
+    def get_created_by(self, obj):
+        if obj.created_by:
+            return obj.created_by.get_username()
+        return None
     class Meta:
         model = Hall
         fields = [
@@ -39,6 +45,7 @@ class HallSerializer(serializers.ModelSerializer):
             "name",
             "code",
             "device_id",
+            "created_by",
             "is_active",
             "created_at",
         ]

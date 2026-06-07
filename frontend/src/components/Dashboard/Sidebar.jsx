@@ -1,14 +1,19 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 
-const Sidebar = ({ onLogout }) => {
+const Sidebar = ({ onLogout, open = false, onClose }) => {
   const menuItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: 'Grid' },
-    { name: 'Settings', path: '/settings', icon: 'Gear' },
+    { name: 'Dashboard', path: '/dashboard' },
+    { name: 'Settings', path: '/settings' },
   ];
 
+  const asideClasses = `fixed inset-y-0 left-0 z-30 md:static md:translate-x-0 transform transition-transform duration-300 bg-brand-navy text-white shadow-xl flex flex-col ${open ? 'translate-x-0' : '-translate-x-full md:translate-x-0'} w-64`;
+
   return (
-    <aside className="w-64 bg-brand-navy h-full flex flex-col text-white shadow-xl z-20">
+      <aside
+        className={asideClasses}
+        aria-hidden={!open && typeof window !== 'undefined' && window.innerWidth < 768}
+      >
       <div className="p-6 border-b border-white/10 flex items-center gap-3">
         <div className="w-8 h-8 bg-brand-purple rounded-lg flex items-center justify-center font-bold">S</div>
         <span className="text-xl font-bold tracking-tight">SmartExam</span>
@@ -19,6 +24,7 @@ const Sidebar = ({ onLogout }) => {
           <NavLink
             key={item.name}
             to={item.path}
+            onClick={() => onClose && onClose()}
             className={({ isActive }) =>
               `w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-all font-medium ${
                 isActive
@@ -27,7 +33,6 @@ const Sidebar = ({ onLogout }) => {
               }`
             }
           >
-            <span className="text-xs font-black uppercase tracking-widest">{item.icon}</span>
             {item.name}
           </NavLink>
         ))}

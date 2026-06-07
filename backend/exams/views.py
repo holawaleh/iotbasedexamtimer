@@ -27,6 +27,30 @@ class HallViewSet(viewsets.ModelViewSet):
     queryset = Hall.objects.all()
     serializer_class = HallSerializer
     permission_classes = [IsAuthenticated]
+    
+    def create(self, request, *args, **kwargs):
+        code = request.data.get('code')
+        device_id = request.data.get('device_id')
+
+        existing = Hall.objects.filter(Q(code=code) | Q(device_id=device_id)).first()
+        if existing:
+            # If existing hall already has an owner, prevent new user from claiming it
+            if existing.created_by and existing.created_by != request.user:
+                return Response({'detail': 'Device or hall already registered by another user.'}, status=400)
+            return Response({'detail': 'Device or hall already exists.'}, status=400)
+
+        # assign owner
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        # set owner explicitly
+        hall = Hall.objects.get(pk=serializer.data['id'])
+        if request.user.is_authenticated:
+            hall.created_by = request.user
+            hall.save(update_fields=['created_by'])
+
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=201, headers=headers)
 
 
 class ExaminationSessionViewSet(viewsets.ModelViewSet):
@@ -87,6 +111,11 @@ class ExaminationSessionViewSet(viewsets.ModelViewSet):
             message=publish_result["reason"],
         )
         return Response(ExaminationSessionSerializer(session, context={"request": request}).data)
+
+    @action(detail=False, methods=["get"])
+    def active_count(self, request):
+        count = self.get_queryset().filter(status=ExaminationSession.Status.ACTIVE).count()
+        return Response({"active": count})
 
 
 class DisplayLogViewSet(viewsets.ReadOnlyModelViewSet):

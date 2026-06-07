@@ -93,7 +93,7 @@ const Settings = ({ config, setConfig, token }) => {
       <div className="bg-white border border-slate-200 rounded-4xl p-8 shadow-sm">
         <header className="mb-8">
           <h2 className="text-2xl font-bold text-slate-800">Exam Settings</h2>
-          <p className="text-slate-500 text-sm">Create the cloud session the ESP32 display will receive.</p>
+          <p className="text-slate-500 text-sm">Create the Information the ESP32 display will receive.</p>
         </header>
 
         <div className="space-y-6">

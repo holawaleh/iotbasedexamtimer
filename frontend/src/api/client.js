@@ -112,3 +112,7 @@ export function finishSession(token, sessionId) {
     method: 'POST',
   });
 }
+
+export function getActiveSessionsCount(token) {
+  return request('/sessions/active_count/', { token });
+}

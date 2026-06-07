@@ -8,6 +8,13 @@ class Hall(models.Model):
     code = models.SlugField(max_length=50, unique=True)
     device_id = models.CharField(max_length=80, unique=True)
     is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name='halls',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

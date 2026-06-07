@@ -122,11 +122,12 @@ const TimerControl = ({ config, setConfig, token }) => {
 
   const formatTimeDisplay = (date) => {
     if (!date) return '--:--';
-    return date.toLocaleTimeString(undefined, {
+    return date.toLocaleTimeString('en-US', {
+      timeZone: 'Africa/Lagos',
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
-      hour12: false,
+      hour12: true,
     });
   };
 
