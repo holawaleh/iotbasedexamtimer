@@ -76,7 +76,8 @@ function App() {
           setCurrentUser(user);
           setAuthChecked(true);
         }
-      } catch {
+      } catch (err) {
+        console.error(err);
         if (isMounted) {
           handleLogout();
           setAuthChecked(true);

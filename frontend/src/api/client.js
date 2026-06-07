@@ -32,7 +32,9 @@ async function request(path, { token, method = 'GET', body } = {}) {
       data.non_field_errors?.[0] ||
       collectErrorMessages(data).join(' ') ||
       'Request failed';
-    throw new Error(message);
+    const err = new Error(message);
+    err.data = data;
+    throw err;
   }
 
   return data;

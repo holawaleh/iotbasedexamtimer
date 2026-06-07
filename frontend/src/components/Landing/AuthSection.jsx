@@ -9,6 +9,7 @@ const AuthSection = ({ onLoginSuccess }) => {
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+    const [fieldErrors, setFieldErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [NetworkStatus, setNetworkStatus] = useState('Checking connectivity...');
   const [NetworkIsReachable, setNetworkIsReachable] = useState(false);
@@ -41,13 +42,22 @@ const AuthSection = ({ onLoginSuccess }) => {
     e.preventDefault();
     setError('');
     setSuccess('');
+    setFieldErrors({});
     setIsSubmitting(true);
 
     try {
       if (isSignup) {
         const tokens = await signup({ username, email, password, passwordConfirm });
         setSuccess('Account created.');
-        onLoginSuccess(tokens);
+        // If backend returned tokens, auto-login. Otherwise guide user to sign in.
+        if (tokens && tokens.access) {
+          onLoginSuccess(tokens);
+          return;
+        }
+        // No tokens returned: prefill sign-in and switch mode
+        setMode('signin');
+        setPassword('');
+        setPasswordConfirm('');
         return;
       }
 
@@ -55,6 +65,20 @@ const AuthSection = ({ onLoginSuccess }) => {
       onLoginSuccess(tokens);
     } catch (err) {
       setError(err.message || (isSignup ? 'Signup failed' : 'Login failed'));
+      console.error(err);
+      // If server returned structured field errors, show them under inputs
+      if (err && err.data && typeof err.data === 'object') {
+        setFieldErrors(err.data);
+        // Prefer top-level non-field errors for the main error box
+        const nonField = err.data.detail || err.data.non_field_errors || null;
+        if (nonField) {
+          setError(Array.isArray(nonField) ? nonField.join(' ') : String(nonField));
+        } else {
+          setError(err.message || (isSignup ? 'Signup failed' : 'Login failed'));
+        }
+      } else {
+        setError(err.message || (isSignup ? 'Signup failed' : 'Login failed'));
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -127,6 +151,9 @@ const AuthSection = ({ onLoginSuccess }) => {
               className="w-full p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-brand-purple font-semibold text-slate-700"
               required
             />
+            {fieldErrors.username && (
+              <p className="mt-2 text-sm text-red-600 font-semibold">{Array.isArray(fieldErrors.username) ? fieldErrors.username.join(' ') : String(fieldErrors.username)}</p>
+            )}
           </div>
 
           {isSignup && (
@@ -141,6 +168,9 @@ const AuthSection = ({ onLoginSuccess }) => {
                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-brand-purple font-semibold text-slate-700"
                 required
               />
+              {fieldErrors.email && (
+                <p className="mt-2 text-sm text-red-600 font-semibold">{Array.isArray(fieldErrors.email) ? fieldErrors.email.join(' ') : String(fieldErrors.email)}</p>
+              )}
             </div>
           )}
 
@@ -156,6 +186,9 @@ const AuthSection = ({ onLoginSuccess }) => {
               className="w-full p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-brand-purple font-semibold text-slate-700"
               required
             />
+            {fieldErrors.password && (
+              <p className="mt-2 text-sm text-red-600 font-semibold">{Array.isArray(fieldErrors.password) ? fieldErrors.password.join(' ') : String(fieldErrors.password)}</p>
+            )}
           </div>
 
           {isSignup && (
@@ -171,6 +204,9 @@ const AuthSection = ({ onLoginSuccess }) => {
                 className="w-full p-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-brand-purple font-semibold text-slate-700"
                 required
               />
+              {(fieldErrors.password_confirm || fieldErrors.passwordConfirm) && (
+                <p className="mt-2 text-sm text-red-600 font-semibold">{Array.isArray(fieldErrors.password_confirm || fieldErrors.passwordConfirm) ? (fieldErrors.password_confirm || fieldErrors.passwordConfirm).join(' ') : String(fieldErrors.password_confirm || fieldErrors.passwordConfirm)}</p>
+              )}
             </div>
           )}
 
