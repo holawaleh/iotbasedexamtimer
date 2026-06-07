@@ -10,8 +10,8 @@ const AuthSection = ({ onLoginSuccess }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [backendStatus, setBackendStatus] = useState('Checking backend...');
-  const [backendIsReachable, setBackendIsReachable] = useState(false);
+  const [NetworkStatus, setNetworkStatus] = useState('Checking connectivity...');
+  const [NetworkIsReachable, setNetworkIsReachable] = useState(false);
 
   const isSignup = mode === 'signup';
 
@@ -21,14 +21,14 @@ const AuthSection = ({ onLoginSuccess }) => {
     healthCheck()
       .then(() => {
         if (isMounted) {
-          setBackendStatus('Backend connected');
-          setBackendIsReachable(true);
+          setNetworkStatus('Network connected');
+          setNetworkIsReachable(true);
         }
       })
       .catch(() => {
         if (isMounted) {
-          setBackendStatus('Backend not confirmed');
-          setBackendIsReachable(false);
+          setNetworkStatus('Network not confirmed');
+          setNetworkIsReachable(false);
         }
       });
 
@@ -65,16 +65,16 @@ const AuthSection = ({ onLoginSuccess }) => {
       <div className="w-full max-w-sm animate-in fade-in slide-in-from-right-4 duration-500 text-center">
         <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-left">
           <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2">
-            API Connection
+            Connectivity
           </p>
           <p
             className={`text-sm font-bold ${
-              backendIsReachable ? 'text-emerald-700' : 'text-orange-600'
+              NetworkIsReachable ? 'text-emerald-700' : 'text-orange-600'
             }`}
           >
-            {backendStatus}
+            {NetworkStatus}
           </p>
-          <p className="text-xs text-slate-500 mt-1 break-all">{API_BASE_URL}</p>
+          {/* <p className="text-xs text-slate-500 mt-1 break-all">{API_BASE_URL}</p> */}
         </div>
 
         <h2 className="text-2xl font-bold text-slate-800 mb-2">
@@ -83,7 +83,7 @@ const AuthSection = ({ onLoginSuccess }) => {
         <p className="text-slate-500 mb-6">
           {isSignup
             ? 'Create a dashboard account using the Django API.'
-            : 'Sign in with a backend account before entering the dashboard.'}
+            : 'Sign in to continue or signup to create an account'}
         </p>
 
         <div className="grid grid-cols-2 rounded-lg border border-slate-200 bg-slate-50 p-1 mb-6">
