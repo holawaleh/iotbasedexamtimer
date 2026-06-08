@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://iotbasedexamtimer.onrender.com/api';
+﻿const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://iotbasedexamtimer.onrender.com/api';
 
 function collectErrorMessages(value) {
   if (!value) return [];
@@ -93,6 +93,14 @@ export function createHall(token, hall) {
   });
 }
 
+export function updateHall(token, hallId, hall) {
+  return request(`/halls/${hallId}/`, {
+    token,
+    method: 'PATCH',
+    body: hall,
+  });
+}
+
 export function createSession(token, session) {
   return request('/sessions/', {
     token,
@@ -118,3 +126,15 @@ export function finishSession(token, sessionId) {
 export function getActiveSessionsCount(token) {
   return request('/sessions/active_count/', { token });
 }
+export function getDisplayLogs(token) {
+  return request('/logs/', { token });
+}
+
+export function sendEmergencyMessage(token, hallId, message) {
+  return request(`/halls/${hallId}/emergency/`, {
+    token,
+    method: 'POST',
+    body: { message },
+  });
+}
+

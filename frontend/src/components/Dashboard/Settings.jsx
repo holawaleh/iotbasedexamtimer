@@ -1,29 +1,67 @@
-import React, { useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { createHall, createSession, getHalls } from '../../api/client';
 
 const timeToSeconds = (value) => {
-  const [h, m, s] = value.split(':').map(Number);
+  const [h = 0, m = 0, s = 0] = (value || '00:00:00').split(':').map((part) => Number(part) || 0);
   return h * 3600 + m * 60 + s;
 };
 
-const buildStartTime = (date, time) => {
-  const safeDate = date || new Date().toISOString().slice(0, 10);
-  const safeTime = time || '09:00';
-  return new Date(`${safeDate}T${safeTime}:00`).toISOString();
-};
+const buildStartTime = (date, time) => new Date(`${date}T${time}:00`).toISOString();
 
 const Settings = ({ config, setConfig, token }) => {
+  const [halls, setHalls] = useState([]);
   const [statusMessage, setStatusMessage] = useState('');
+  const [deviceMessage, setDeviceMessage] = useState('');
   const [error, setError] = useState('');
+  const [deviceError, setDeviceError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [isLoadingDevices, setIsLoadingDevices] = useState(false);
+
+  const selectedHall = halls.find((hall) => String(hall.id) === String(config.hallId));
+
+  const loadDevices = async () => {
+    if (!token) return;
+    setIsLoadingDevices(true);
+    try {
+      const data = await getHalls(token);
+      setHalls(Array.isArray(data) ? data : []);
+    } catch (err) {
+      setDeviceError(err.message || 'Could not load registered devices');
+    } finally {
+      setIsLoadingDevices(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDevices();
+  }, [token]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setConfig({ ...config, [name]: value });
   };
 
+  const handleDeviceSelect = (e) => {
+    const hall = halls.find((item) => String(item.id) === e.target.value);
+    if (!hall) {
+      setConfig({ ...config, hallId: null, hallName: '', hallCode: '', deviceId: '' });
+      return;
+    }
+
+    setConfig({
+      ...config,
+      hallId: hall.id,
+      hallName: hall.name,
+      hallCode: hall.code,
+      deviceId: hall.device_id,
+    });
+  };
+
   const parseTimerValue = () => {
-    const [h, m, s] = config.timerValue.split(':').map(Number);
+    const [h = 0, m = 0, s = 0] = (config.timerValue || '00:00:00')
+      .split(':')
+      .map((part) => Number(part) || 0);
     return { h, m, s };
   };
 
@@ -41,46 +79,101 @@ const Settings = ({ config, setConfig, token }) => {
     setConfig({ ...config, timerValue: formatted });
   };
 
-  const findOrCreateHall = async () => {
-    const halls = await getHalls(token);
-    const existingHall = halls.find(
-      (hall) => hall.code === config.hallCode || hall.device_id === config.deviceId,
-    );
+  const validateDevice = () => {
+    const requiredFields = [
+      ['Hall Name', config.hallName],
+      ['Hall Code', config.hallCode],
+      ['Device ID', config.deviceId],
+    ];
+    const missing = requiredFields.filter(([, value]) => !String(value || '').trim()).map(([label]) => label);
+    return missing.length ? `Please fill: ${missing.join(', ')}.` : '';
+  };
 
-    if (existingHall) return existingHall;
+  const handleRegisterDevice = async () => {
+    setDeviceError('');
+    setDeviceMessage('');
 
-    return createHall(token, {
-      name: config.hallName,
-      code: config.hallCode,
-      device_id: config.deviceId,
-      is_active: true,
-    });
+    const validationError = validateDevice();
+    if (validationError) {
+      setDeviceError(validationError);
+      return;
+    }
+
+    setIsRegistering(true);
+    try {
+      const hall = await createHall(token, {
+        name: config.hallName.trim(),
+        code: config.hallCode.trim(),
+        device_id: config.deviceId.trim(),
+        is_active: true,
+      });
+
+      setHalls((current) => [...current.filter((item) => item.id !== hall.id), hall]);
+      setConfig({ ...config, hallId: hall.id, hallName: hall.name, hallCode: hall.code, deviceId: hall.device_id });
+      setDeviceMessage(`${hall.name} registered for device ${hall.device_id}.`);
+    } catch (err) {
+      setDeviceError(err.message || 'Could not register device');
+    } finally {
+      setIsRegistering(false);
+    }
+  };
+
+  const validateSession = () => {
+    const requiredFields = [
+      ['Registered Display Device', config.hallId],
+      ['Course Code', config.courseCode],
+      ['Examination Date', config.examDate],
+      ['Scheduled Start Time', config.scheduledStartTime],
+    ];
+
+    const missing = requiredFields.filter(([, value]) => !String(value || '').trim()).map(([label]) => label);
+    if (missing.length) {
+      return `Please fill: ${missing.join(', ')}.`;
+    }
+
+    if (timeToSeconds(config.timerValue) < 60) {
+      return 'Timer duration must be at least 1 minute.';
+    }
+
+    return '';
   };
 
   const handleSaveSession = async () => {
     setError('');
     setStatusMessage('');
+
+    const validationError = validateSession();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setIsSaving(true);
 
     try {
-      const hall = await findOrCreateHall();
+      const startTime = buildStartTime(config.examDate, config.scheduledStartTime);
       const session = await createSession(token, {
-        course_code: config.courseCode,
-        course_title: config.courseTitle,
-        hall: hall.id,
-        start_time: buildStartTime(config.examDate, config.scheduledStartTime),
+        course_code: config.courseCode.trim(),
+        course_title: config.courseTitle.trim(),
+        hall: config.hallId,
+        start_time: startTime,
         duration_seconds: timeToSeconds(config.timerValue),
         status: 'SCHEDULED',
       });
 
+      const hall = session.hall_detail || selectedHall;
       setConfig({
         ...config,
-        hallId: hall.id,
+        hallId: hall?.id || config.hallId,
+        hallName: hall?.name || config.hallName,
+        hallCode: hall?.code || config.hallCode,
+        deviceId: hall?.device_id || config.deviceId,
         sessionId: session.id,
-        backendStatus: 'Session saved',
+        scheduledStartAt: session.start_time || startTime,
+        backendStatus: 'Scheduled',
         mqttStatus: 'Waiting',
       });
-      setStatusMessage(`Session ${session.id} saved for ${hall.name}.`);
+      setStatusMessage(`Session ${session.id} scheduled for ${hall?.name || 'selected display'}.`);
     } catch (err) {
       setError(err.message || 'Could not save session');
     } finally {
@@ -89,17 +182,38 @@ const Settings = ({ config, setConfig, token }) => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="bg-white border border-slate-200 rounded-4xl p-8 shadow-sm">
-        <header className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-800">Exam Settings</h2>
-          <p className="text-slate-500 text-sm">Create the Information the ESP32 display will receive.</p>
+    <div className="mx-auto w-full max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500 space-y-4">
+      <section className="rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <header className="mb-4 min-w-0">
+          <h2 className="break-words text-xl font-bold text-slate-800">Display Device</h2>
+          <p className="break-words text-sm text-slate-500">
+            Add each ESP32 display with its unique device ID, then choose the display for a session.
+          </p>
         </header>
 
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="space-y-4">
+          <div>
+            <label className="mb-2 ml-1 block break-words text-xs font-black uppercase text-slate-500">
+              Registered Devices
+            </label>
+            <select
+              value={config.hallId || ''}
+              onChange={handleDeviceSelect}
+              className="min-h-11 w-full rounded-md border border-slate-200 bg-slate-50 p-3 font-bold text-slate-700 transition-all focus:border-brand-purple focus:outline-none"
+            >
+              <option value="">Select a registered display</option>
+              {halls.map((hall) => (
+                <option key={hall.id} value={hall.id}>
+                  {hall.name} - {hall.device_id}
+                </option>
+              ))}
+            </select>
+            {isLoadingDevices && <p className="mt-2 text-xs font-bold text-slate-500">Loading devices...</p>}
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
+              <label className="mb-2 ml-1 block break-words text-xs font-black uppercase text-slate-500">
                 Hall Name
               </label>
               <input
@@ -107,11 +221,11 @@ const Settings = ({ config, setConfig, token }) => {
                 name="hallName"
                 value={config.hallName}
                 onChange={handleChange}
-                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-bold text-slate-700 transition-all"
+                className="min-h-11 w-full rounded-md border border-slate-200 bg-slate-50 p-3 font-bold text-slate-700 transition-all focus:border-brand-purple focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
+              <label className="mb-2 ml-1 block break-words text-xs font-black uppercase text-slate-500">
                 Hall Code
               </label>
               <input
@@ -119,11 +233,11 @@ const Settings = ({ config, setConfig, token }) => {
                 name="hallCode"
                 value={config.hallCode}
                 onChange={handleChange}
-                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-bold text-slate-700 transition-all"
+                className="min-h-11 w-full rounded-md border border-slate-200 bg-slate-50 p-3 font-bold text-slate-700 transition-all focus:border-brand-purple focus:outline-none"
               />
             </div>
             <div>
-              <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
+              <label className="mb-2 ml-1 block break-words text-xs font-black uppercase text-slate-500">
                 Device ID
               </label>
               <input
@@ -131,127 +245,158 @@ const Settings = ({ config, setConfig, token }) => {
                 name="deviceId"
                 value={config.deviceId}
                 onChange={handleChange}
-                className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-bold text-slate-700 transition-all"
+                className="min-h-11 w-full rounded-md border border-slate-200 bg-slate-50 p-3 font-bold text-slate-700 transition-all focus:border-brand-purple focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+
+        {deviceError && (
+          <div className="mt-4 rounded-md border border-red-100 bg-red-50 p-4">
+            <p className="break-words text-sm font-bold text-red-600">{deviceError}</p>
+          </div>
+        )}
+
+        {deviceMessage && (
+          <div className="mt-4 rounded-md border border-emerald-100 bg-emerald-50 p-4">
+            <p className="break-words text-sm font-bold text-emerald-700">{deviceMessage}</p>
+          </div>
+        )}
+
+        <button
+          onClick={handleRegisterDevice}
+          disabled={isRegistering}
+          className="mt-5 min-h-11 w-full cursor-pointer rounded-md border border-brand-purple bg-white px-4 font-bold text-brand-purple transition-all hover:bg-purple-50 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {isRegistering ? 'Registering Device...' : 'Register Device'}
+        </button>
+      </section>
+
+      <section className="rounded-md border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <header className="mb-4 min-w-0">
+          <h2 className="break-words text-xl font-bold text-slate-800">Exam Session</h2>
+          <p className="break-words text-sm text-slate-500">Schedule the course and countdown for the selected display.</p>
+        </header>
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 ml-1 block break-words text-xs font-black uppercase text-slate-500">
+                Course Code
+              </label>
+              <input
+                type="text"
+                name="courseCode"
+                value={config.courseCode}
+                onChange={handleChange}
+                className="min-h-11 w-full rounded-md border border-slate-200 bg-slate-50 p-3 font-bold text-slate-700 transition-all focus:border-brand-purple focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 ml-1 block break-words text-xs font-black uppercase text-slate-500">
+                Course Title
+              </label>
+              <input
+                type="text"
+                name="courseTitle"
+                value={config.courseTitle}
+                onChange={handleChange}
+                className="min-h-11 w-full rounded-md border border-slate-200 bg-slate-50 p-3 font-bold text-slate-700 transition-all focus:border-brand-purple focus:outline-none"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
-              Course Code
-            </label>
-            <input
-              type="text"
-              name="courseCode"
-              value={config.courseCode}
-              onChange={handleChange}
-              placeholder="e.g. COM 412"
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-bold text-slate-700 transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
-              Course Title
-            </label>
-            <input
-              type="text"
-              name="courseTitle"
-              value={config.courseTitle}
-              onChange={handleChange}
-              placeholder="Optional"
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-bold text-slate-700 transition-all"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-3 ml-1">
+            <label className="mb-2 ml-1 block break-words text-xs font-black uppercase text-slate-500">
               Timer Duration
             </label>
-            <div className="flex gap-3">
-              <div className="flex-1">
-                <label className="text-xs text-slate-500 font-bold block mb-1">Hours</label>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-500">Hours</label>
                 <input
                   type="number"
                   min="0"
                   max="23"
                   value={parseTimerValue().h}
                   onChange={(e) => handleTimeChange('hours', e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-mono font-bold text-slate-700 transition-all text-center"
+                  className="min-h-11 w-full rounded-md border border-slate-200 bg-slate-50 p-3 text-center font-mono font-bold text-slate-700 transition-all focus:border-brand-purple focus:outline-none"
                 />
               </div>
-              <div className="flex-1">
-                <label className="text-xs text-slate-500 font-bold block mb-1">Minutes</label>
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-500">Minutes</label>
                 <input
                   type="number"
                   min="0"
                   max="59"
                   value={parseTimerValue().m}
                   onChange={(e) => handleTimeChange('minutes', e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-mono font-bold text-slate-700 transition-all text-center"
+                  className="min-h-11 w-full rounded-md border border-slate-200 bg-slate-50 p-3 text-center font-mono font-bold text-slate-700 transition-all focus:border-brand-purple focus:outline-none"
                 />
               </div>
-              <div className="flex-1">
-                <label className="text-xs text-slate-500 font-bold block mb-1">Seconds</label>
+              <div>
+                <label className="mb-1 block text-xs font-bold text-slate-500">Seconds</label>
                 <input
                   type="number"
                   min="0"
                   max="59"
                   value={parseTimerValue().s}
                   onChange={(e) => handleTimeChange('seconds', e.target.value)}
-                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-mono font-bold text-slate-700 transition-all text-center"
+                  className="min-h-11 w-full rounded-md border border-slate-200 bg-slate-50 p-3 text-center font-mono font-bold text-slate-700 transition-all focus:border-brand-purple focus:outline-none"
                 />
               </div>
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
-              Examination Date
-            </label>
-            <input
-              type="date"
-              name="examDate"
-              value={config.examDate}
-              onChange={handleChange}
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-bold text-slate-700 transition-all cursor-pointer"
-            />
-          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-2 ml-1 block break-words text-xs font-black uppercase text-slate-500">
+                Examination Date
+              </label>
+              <input
+                type="date"
+                name="examDate"
+                value={config.examDate}
+                onChange={handleChange}
+                className="min-h-11 w-full cursor-pointer rounded-md border border-slate-200 bg-slate-50 p-3 font-bold text-slate-700 transition-all focus:border-brand-purple focus:outline-none"
+              />
+            </div>
 
-          <div>
-            <label className="block text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">
-              Scheduled Start Time
-            </label>
-            <input
-              type="time"
-              name="scheduledStartTime"
-              value={config.scheduledStartTime || ''}
-              onChange={handleChange}
-              className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl focus:outline-none focus:border-brand-purple font-bold text-slate-700 transition-all cursor-pointer"
-            />
+            <div>
+              <label className="mb-2 ml-1 block break-words text-xs font-black uppercase text-slate-500">
+                Scheduled Start Time
+              </label>
+              <input
+                type="time"
+                name="scheduledStartTime"
+                value={config.scheduledStartTime || ''}
+                onChange={handleChange}
+                className="min-h-11 w-full cursor-pointer rounded-md border border-slate-200 bg-slate-50 p-3 font-bold text-slate-700 transition-all focus:border-brand-purple focus:outline-none"
+              />
+            </div>
           </div>
         </div>
 
         {error && (
-          <div className="mt-6 p-4 bg-red-50 rounded-2xl border border-red-100">
-            <p className="text-sm text-red-600 font-bold">{error}</p>
+          <div className="mt-4 rounded-md border border-red-100 bg-red-50 p-4">
+            <p className="break-words text-sm font-bold text-red-600">{error}</p>
           </div>
         )}
 
         {statusMessage && (
-          <div className="mt-6 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-            <p className="text-sm text-emerald-700 font-bold">{statusMessage}</p>
+          <div className="mt-4 rounded-md border border-emerald-100 bg-emerald-50 p-4">
+            <p className="break-words text-sm font-bold text-emerald-700">{statusMessage}</p>
           </div>
         )}
 
         <button
           onClick={handleSaveSession}
           disabled={isSaving}
-          className="mt-8 w-full bg-brand-purple text-white font-bold py-4 rounded-2xl hover:brightness-110 transition-all active:scale-95 cursor-pointer disabled:cursor-not-allowed disabled:opacity-70"
+          className="mt-5 min-h-12 w-full cursor-pointer rounded-md bg-brand-purple px-4 font-bold text-white transition-all hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
         >
-          {isSaving ? 'Saving Session...' : 'Save Cloud Session'}
+          {isSaving ? 'Saving Session...' : 'Save Session'}
         </button>
-      </div>
+      </section>
     </div>
   );
 };

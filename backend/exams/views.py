@@ -1,4 +1,4 @@
-from django.db.models import Q
+﻿from django.db.models import Q
 from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
@@ -27,6 +27,34 @@ class HallViewSet(viewsets.ModelViewSet):
     queryset = Hall.objects.all()
     serializer_class = HallSerializer
     permission_classes = [IsAuthenticated]
+
+    @action(detail=True, methods=["post"])
+    def emergency(self, request, pk=None):
+        hall = self.get_object()
+        message = str(request.data.get("message", "")).strip()
+        if not message:
+            return Response({"detail": "Emergency message is required."}, status=status.HTTP_400_BAD_REQUEST)
+        if len(message) > 180:
+            return Response({"detail": "Emergency message must be 180 characters or fewer."}, status=status.HTTP_400_BAD_REQUEST)
+
+        payload = {
+            "type": "EMERGENCY",
+            "hall": hall.code,
+            "device_id": hall.device_id,
+            "message": message,
+            "server_epoch": int(timezone.now().timestamp()),
+        }
+        publish_result = publish_display_command(hall.code, payload)
+        DisplayLog.objects.create(
+            session=None,
+            hall=hall,
+            event=DisplayLog.Event.BROADCAST if publish_result["published"] else DisplayLog.Event.MQTT_PUBLISH_FAILED,
+            topic=publish_result["topic"],
+            payload=payload,
+            message=publish_result["reason"] or message,
+        )
+
+        return Response({"message": message, "mqtt": publish_result})
     
     def create(self, request, *args, **kwargs):
         code = request.data.get('code')
@@ -205,6 +233,9 @@ def current_display_session(request):
         }
         return Response(DisplayCurrentSerializer(payload).data)
 
+    if session.status == ExaminationSession.Status.SCHEDULED and session.start_time <= timezone.now():
+        session.activate()
+
     payload = session.build_display_payload(event_type="SYNC")
     payload["server_epoch"] = int(timezone.now().timestamp())
     serializer = DisplayCurrentSerializer(
@@ -222,3 +253,5 @@ def current_display_session(request):
     data = serializer.data
     data["server_epoch"] = payload["server_epoch"]
     return Response(data)
+
+

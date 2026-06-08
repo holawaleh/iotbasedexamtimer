@@ -1,23 +1,21 @@
-import React from 'react';
+﻿import React from 'react';
 
 const StatCard = ({ title, value, subtext, icon, color }) => {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex items-center gap-5">
-      {/* Icon Circle */}
-      <div className={`w-14 h-14 rounded-xl ${color} bg-opacity-10 flex items-center justify-center text-2xl`}>
+    <div className="flex min-h-24 min-w-0 items-center gap-3 rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md ${color} bg-opacity-10 text-xl`}>
         {icon}
       </div>
-      
-      {/* Content */}
-      <div className="flex-1">
-        <p className="text-sm font-semibold text-slate-500 uppercase tracking-wider">{title}</p>
-        <div className="flex items-baseline gap-2">
-          <h3 className="text-2xl font-bold text-slate-900">{value}</h3>
-        </div>
-        <p className="text-xs font-medium text-slate-400 mt-1 flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          {subtext}
-        </p>
+
+      <div className="min-w-0 flex-1">
+        <p className="break-words text-xs font-bold uppercase text-slate-500">{title}</p>
+        <h3 className="mt-1 break-words text-xl font-bold leading-tight text-slate-900 sm:text-2xl">{value}</h3>
+        {subtext && (
+          <p className="mt-1 flex items-center gap-1.5 text-xs font-medium text-slate-400">
+            <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
+            <span className="min-w-0 break-words">{subtext}</span>
+          </p>
+        )}
       </div>
     </div>
   );

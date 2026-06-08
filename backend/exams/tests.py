@@ -1,4 +1,4 @@
-from datetime import timedelta
+﻿from datetime import timedelta
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
@@ -101,3 +101,38 @@ class DisplaySessionApiTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["status"], "ok")
+    @override_settings(
+        MQTT={
+            "ENABLED": False,
+            "HOST": "",
+            "PORT": 8883,
+            "USERNAME": "",
+            "PASSWORD": "",
+            "USE_TLS": True,
+            "TOPIC_PREFIX": "exam-timer",
+        }
+    )
+    def test_emergency_message_records_display_log(self):
+        response = self.client.post(
+            reverse("hall-emergency", args=[self.hall.id]),
+            {"message": "Please leave the hall calmly."},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.data["mqtt"]["published"])
+        log = DisplayLog.objects.get()
+        self.assertEqual(log.hall, self.hall)
+        self.assertEqual(log.event, DisplayLog.Event.MQTT_PUBLISH_FAILED)
+        self.assertEqual(log.payload["type"], "EMERGENCY")
+        self.assertEqual(log.payload["message"], "Please leave the hall calmly.")
+
+    def test_emergency_message_requires_text(self):
+        response = self.client.post(
+            reverse("hall-emergency", args=[self.hall.id]),
+            {"message": ""},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
