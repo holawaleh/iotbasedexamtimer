@@ -1,4 +1,4 @@
-#include <Arduino.h>
+﻿#include <Arduino.h>
 #include "config.h"
 #include "display_driver.h"
 #include "timer_engine.h"

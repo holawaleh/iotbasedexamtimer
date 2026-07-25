@@ -2,8 +2,10 @@
 #include "wifi_settings.h"
 #include <time.h>
 
+// West Africa Time = UTC+1, no DST
 static const long GMT_OFFSET_SEC = 1 * 3600;
 static const int  DST_OFFSET_SEC = 0;
+
 static bool synced = false;
 
 void ntpClockInit() {
@@ -24,11 +26,18 @@ void ntpClockInit() {
   }
   Serial.println();
 
-  synced = (attempts < 20);
-  Serial.println(synced ? "NTP: synced successfully" : "NTP: sync failed");
+  if (attempts < 20) {
+    synced = true;
+    Serial.println("NTP: synced successfully");
+  } else {
+    synced = false;
+    Serial.println("NTP: sync failed");
+  }
 }
 
-bool ntpClockIsSynced() { return synced; }
+bool ntpClockIsSynced() {
+  return synced;
+}
 
 void ntpClockGetTime(int &hour24, int &minute, int &second) {
   struct tm timeinfo;
@@ -37,6 +46,8 @@ void ntpClockGetTime(int &hour24, int &minute, int &second) {
     minute = timeinfo.tm_min;
     second = timeinfo.tm_sec;
   } else {
-    hour24 = -1; minute = -1; second = -1;
+    hour24 = -1;
+    minute = -1;
+    second = -1;
   }
 }

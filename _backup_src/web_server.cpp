@@ -1,4 +1,4 @@
-﻿#include "web_server.h"
+#include "web_server.h"
 #include "timer_engine.h"
 #include "auth.h"
 #include "user_store.h"

@@ -1,4 +1,4 @@
-﻿#include "auth.h"
+#include "auth.h"
 
 #define MAX_SESSIONS 5
 #define SESSION_TIMEOUT_MS (30UL * 60UL * 1000UL)  // 30 minutes

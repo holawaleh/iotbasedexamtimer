@@ -1,4 +1,4 @@
-﻿#include <Arduino.h>
+#include <Arduino.h>
 #include "dashboard_html.h"
 
 const char INDEX_HTML[] PROGMEM = R"rawliteral(

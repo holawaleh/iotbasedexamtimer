@@ -1,4 +1,4 @@
-﻿#include "wifi_settings.h"
+#include "wifi_settings.h"
 #include "secrets.h"
 #include <WiFi.h>
 #include <ESPmDNS.h>
@@ -20,7 +20,7 @@ void wifiSetup() {
   WiFi.begin(STA_SSID, STA_PASSWORD);
 
   unsigned long startAttempt = millis();
-  while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 15000) {
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttempt < 30000) {
     delay(500);
     Serial.print(".");
   }

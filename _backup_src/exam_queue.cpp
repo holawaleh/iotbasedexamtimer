@@ -1,4 +1,4 @@
-﻿#include "exam_queue.h"
+#include "exam_queue.h"
 
 static QueueEntry queueEntries[MAX_QUEUE_ENTRIES];
 

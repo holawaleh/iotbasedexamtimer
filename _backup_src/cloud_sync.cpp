@@ -1,16 +1,14 @@
-﻿#include "cloud_sync.h"
+#include "cloud_sync.h"
 #include "wifi_settings.h"
 #include "timer_engine.h"
 #include "logger.h"
+#include "secrets.h"
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include "secrets.h"
 
-static unsigned long lastPushMs = 0;
-static unsigned long lastPollMs = 0;
-static const unsigned long PUSH_INTERVAL_MS = 3000;
-static const unsigned long POLL_INTERVAL_MS = 3000;
+static unsigned long lastSyncMs = 0;
+static const unsigned long SYNC_INTERVAL_MS = 15000;
 
 static const char* stateToStr(TimerState s) {
   switch (s) {
@@ -27,9 +25,12 @@ void cloudSyncInit() {
 
 static void pushStatus() {
   WiFiClientSecure client;
-  client.setInsecure();  // simplest approach - skips cert validation
+  client.setInsecure();
 
   HTTPClient http;
+  http.setTimeout(8000);
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+
   String url = String(CLOUD_API_BASE) + "/api/status";
   if (!http.begin(client, url)) return;
   http.addHeader("Content-Type", "application/json");
@@ -47,7 +48,9 @@ static void pushStatus() {
 
   int code = http.POST(body);
   http.end();
-  if (code != 200) {
+  if (code == 200) {
+    Serial.println("Cloud push OK");
+  } else {
     Serial.print("Cloud push failed, code=");
     Serial.println(code);
   }
@@ -58,12 +61,19 @@ static void pollCommand() {
   client.setInsecure();
 
   HTTPClient http;
+  http.setTimeout(8000);
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+
   String url = String(CLOUD_API_BASE) + "/api/command";
   if (!http.begin(client, url)) return;
   http.addHeader("x-device-secret", DEVICE_SECRET);
 
   int code = http.GET();
   if (code != 200) {
+    if (code != 401) {
+      Serial.print("Cloud poll failed, code=");
+      Serial.println(code);
+    }
     http.end();
     return;
   }
@@ -76,7 +86,11 @@ static void pollCommand() {
   if (err) return;
 
   if (doc["command"].isNull()) return;
+
   String cmd = doc["command"].as<String>();
+  Serial.print("Received cloud command: ");
+  Serial.println(cmd);
+
   JsonObject params = doc["params"];
 
   if (cmd == "start") {
@@ -92,6 +106,8 @@ static void pollCommand() {
     if (!params["line1"].isNull()) {
       topLine1 = params["line1"].as<String>();
       renderTop();
+      Serial.print("Applied line1=");
+      Serial.println(topLine1);
     }
     if (!params["duration"].isNull()) {
       timerSetDuration(params["duration"].as<long>());
@@ -109,12 +125,11 @@ void cloudSyncTick() {
   if (!wifiHasInternet()) return;
 
   unsigned long now = millis();
-  if (now - lastPushMs >= PUSH_INTERVAL_MS) {
-    lastPushMs = now;
+  if (now - lastSyncMs >= SYNC_INTERVAL_MS) {
+    lastSyncMs = now;
     pushStatus();
-  }
-  if (now - lastPollMs >= POLL_INTERVAL_MS) {
-    lastPollMs = now;
+    delay(200);   // brief gap between the two TLS handshakes
+    
     pollCommand();
   }
 }

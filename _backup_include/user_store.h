@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <Arduino.h>
 
 enum UserRole { ROLE_ADMIN, ROLE_STAFF, ROLE_STUDENT };

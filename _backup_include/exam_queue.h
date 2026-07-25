@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <Arduino.h>
 
 // Non-persistent (RAM-only) queue of upcoming exams. This is a storage/UI

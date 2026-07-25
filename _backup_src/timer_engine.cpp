@@ -1,4 +1,4 @@
-﻿#include "timer_engine.h"
+#include "timer_engine.h"
 #include "font.h"
 #include "display_driver.h"
 #include "wifi_settings.h"

@@ -1,4 +1,4 @@
-﻿#include "user_store.h"
+#include "user_store.h"
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
