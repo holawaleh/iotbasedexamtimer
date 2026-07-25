@@ -14,22 +14,26 @@
 
 void setup() {
   Serial.begin(115200);
+
   userStoreInit();
   authInit();
   loggerInit();
   buzzerInit();
   queueInit();
 
-  wifiSetup();
-  ntpClockInit();
-
+  // Display comes up first and immediately, before any network activity,
+  // so the panel is never blank while WiFi/NTP are connecting/syncing.
   displayInitPins();
   memset(framebuffer, 0, sizeof(framebuffer));
   renderAll();
   displayStartTask();
 
+  wifiSetup();
+  ntpClockInit();
+
   webServerSetup();
-cloudSyncInit();
+  cloudSyncInit();
+
   Serial.println("=== EXAM TIMER ===");
 }
 

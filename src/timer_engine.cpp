@@ -40,41 +40,45 @@ void renderTop() {
 void renderTimer() {
   clearBand(16);
 
-  bool shouldBlink = (timerState == T_FINISHED) ||
-                      (timerState == T_RUNNING && warningActive);
+  bool shouldBlink = (timerState == T_FINISHED);
 
   if (timerState == T_IDLE) {
     int h24, m, s;
     ntpClockGetTime(h24, m, s);
-    char buf[8];
+    char buf[12];
+
     if (h24 >= 0) {
       int h12 = h24 % 12;
       if (h12 == 0) h12 = 12;
       snprintf(buf, sizeof(buf), "%d:%02d", h12, m);
     } else {
-      snprintf(buf, sizeof(buf), "--:--");
+      // Not synced yet / no network: show a live "alive" indicator
+      // instead of a static placeholder, so the panel visibly shows
+      // the system is running and waiting, not frozen or broken.
+      static unsigned long lastAnim = 0;
+      static int dotCount = 0;
+      if (millis() - lastAnim >= 500) {
+        lastAnim = millis();
+        dotCount = (dotCount + 1) % 4;
+      }
+      char dots[4] = "";
+      for (int i = 0; i < dotCount; i++) dots[i] = '.';
+      dots[dotCount] = '\0';
+      snprintf(buf, sizeof(buf), "SYNC%s", dots);
     }
-    int xPos = centerBig(buf);
-    drawTextBig(buf, 17, xPos);
+
+    drawTextAuto(buf, 16);
 
   } else if (shouldBlink && !flashOn) {
-    // blank frame during blink-off phase
+    // blank frame during FINISHED blink-off phase only
 
-  } else {
-    unsigned long totalSec = remainingMs / 1000;
-    int hh = totalSec / 3600;
-    int mm = (totalSec % 3600) / 60;
-    int ss = totalSec % 60;
+} else {
+    unsigned long totalMin = (remainingMs + 59999) / 60000;  // round up to next minute
     char buf[8];
-    if (hh > 0) {
-      snprintf(buf, sizeof(buf), "%d:%02d", hh, mm);
-    } else {
-      snprintf(buf, sizeof(buf), "%d:%02d", mm, ss);
-    }
+    snprintf(buf, sizeof(buf), "%lu", totalMin);
     int xPos = centerBig(buf);
     drawTextBig(buf, 17, xPos);
   }
-
   buildShiftData();
 }
 
@@ -102,7 +106,7 @@ void renderBottom() {
       msg = bottomText.c_str();
     } else {
       switch (timerState) {
-        case T_RUNNING:  msg = "ACTIVE";  break;
+        case T_RUNNING:  msg = warningActive ? "ALMOST UP" : "ACTIVE"; break;
         case T_PAUSED:   msg = "PAUSED";  break;
         case T_FINISHED: msg = "TIME UP"; break;
         default:         msg = "";        break;
@@ -222,6 +226,10 @@ void timerTick() {
                          remainingMs <= (unsigned long)(durationMs * 0.3);
       if (nowWarning && !warningActive) {
         buzzerBeep2x();
+        renderBottom();  // reflect "ALMOST UP" status immediately
+      }
+      if (!nowWarning && warningActive) {
+        renderBottom();  // clear "ALMOST UP" status if applicable
       }
       warningActive = nowWarning;
 
@@ -238,9 +246,8 @@ void timerTick() {
     }
   }
 
-  bool shouldBlink = (timerState == T_FINISHED) ||
-                      (timerState == T_RUNNING && warningActive);
-  if (shouldBlink) {
+  // Only FINISHED blinks now
+  if (timerState == T_FINISHED) {
     if (now - lastFlashMs >= 500) {
       lastFlashMs = now;
       flashOn = !flashOn;

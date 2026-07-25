@@ -15,17 +15,11 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       background: #0f172a; color: #e2e8f0; margin: 0; padding: 24px;
       display: flex; flex-direction: column; align-items: center;
     }
-    .wrap { width: 100%; max-width: 860px; }
+    .wrap { width: 100%; max-width: 820px; }
     h1 { font-size: 22px; color: #38bdf8; margin: 0; }
     .topbar {
       display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 12px; gap: 12px;
-    }
-    .topbar-right { display: flex; align-items: center; gap: 10px; }
-    .whoami { font-size: 13px; color: #94a3b8; }
-    .btn-logout-sm {
-      background: #64748b; color: white; border: none; border-radius: 6px;
-      padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+      margin-bottom: 12px;
     }
     .status { font-size: 13px; color: #94a3b8; margin-bottom: 16px; }
     .running-banner {
@@ -36,7 +30,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     }
     .running-banner.show { display: block; }
 
-    .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #334155; flex-wrap: wrap; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #334155; }
     .tab-btn {
       background: none; border: none; color: #94a3b8; padding: 10px 18px;
       font-size: 14px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent;
@@ -56,24 +50,19 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
       margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
     .timer-display {
-      font-size: 56px; font-weight: 700; text-align: center;
+      font-size: 48px; font-weight: 700; text-align: center;
       color: #38bdf8; letter-spacing: 2px;
     }
-    .timer-display.warning { color: #f87171; animation: pulse 1s infinite; }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .timer-display.warning { color: #f87171; }
     .state-badge {
       display: inline-block; padding: 4px 14px; border-radius: 20px;
       font-size: 12px; font-weight: 600; text-transform: uppercase;
       margin: 8px auto;
     }
     .state-idle { background: #475569; }
-    .state-running { background: #16a34a; animation: glow 1.5s infinite; }
+    .state-running { background: #16a34a; }
     .state-paused { background: #d97706; }
     .state-finished { background: #dc2626; }
-    @keyframes glow {
-      0%,100% { box-shadow: 0 0 4px #16a34a; }
-      50% { box-shadow: 0 0 14px #22c55e; }
-    }
     .center { text-align: center; }
     label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; margin-top: 12px; }
     input, select {
@@ -89,9 +78,17 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
     .btn-pause { background: #d97706; }
     .btn-reset { background: #dc2626; }
     .btn-set { background: #2563eb; width: 100%; margin-top: 12px; }
+    .btn-logout { background: #64748b; width: 100%; margin-top: 12px; }
     .btn-small { flex: 1; padding: 8px; font-size: 12px; }
     .btn-msg-pause { background: #d97706; }
     .btn-msg-cancel { background: #dc2626; }
+    .hint { font-size: 11px; color: #64748b; margin-top: 4px; }
+    .topbar-right { display: flex; align-items: center; gap: 10px; }
+    .whoami { font-size: 12px; color: #94a3b8; }
+    .btn-logout-sm {
+      background: #64748b; color: white; border: none; border-radius: 6px;
+      padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
     .preview-wrap { display: flex; justify-content: center; margin-top: 12px; }
     #preview { background: #000; border-radius: 4px; }
 
@@ -159,12 +156,21 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
   <!-- SETTINGS TAB -->
   <div class="tab-content" id="tab-settings">
     <div class="grid">
+
+      <!-- Merged: course code + duration + optional schedule, one action -->
       <div class="card">
         <label style="margin-top:0">Exam Title / Course Code</label>
         <input type="text" id="line1" placeholder="e.g. PHY 201" maxlength="20">
         <label>Duration (minutes)</label>
         <input type="number" id="duration" placeholder="e.g. 90" min="1" max="999">
-        <button class="btn-set" onclick="setAll()">Apply Settings</button>
+
+        <label>Scheduled Start (optional)</label>
+        <input type="date" id="schedDate">
+        <input type="time" id="schedTime" style="margin-top:8px">
+        <div class="hint">Leave both blank to apply settings immediately without scheduling. Fill both to auto-start at that date/time.</div>
+
+        <button class="btn-set" onclick="applyExamConfig()">Apply Settings</button>
+        <div class="msg" id="configMsg"></div>
       </div>
 
       <div class="card">
@@ -177,25 +183,6 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
           <button class="btn-small btn-msg-pause" id="msgToggleBtn" onclick="msgToggle()">Pause</button>
           <button class="btn-small btn-msg-cancel" onclick="msgAction('cancel')">Cancel</button>
         </div>
-      </div>
-
-      <div class="card">
-        <label style="margin-top:0">Scheduled Start</label>
-        <input type="date" id="schedDate">
-        <label>Time</label>
-        <input type="time" id="schedTime">
-        <div class="btn-row">
-          <button class="btn-start" onclick="armSchedule()">Arm Schedule</button>
-          <button class="btn-reset" onclick="cancelSchedule()">Cancel</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <label style="margin-top:0">My Account</label>
-        <input type="password" id="myOldPass" placeholder="Current password">
-        <input type="password" id="myNewPass" placeholder="New password" style="margin-top:8px">
-        <button class="btn-set" onclick="changeMyPassword()">Change Password</button>
-        <div class="msg" id="myPassMsg"></div>
       </div>
     </div>
 
@@ -213,6 +200,14 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
   <!-- ADMIN TAB -->
   <div class="tab-content" id="tab-admin">
+    <div class="card">
+      <label style="margin-top:0">My Password</label>
+      <input type="password" id="myOldPass" placeholder="Current password">
+      <input type="password" id="myNewPass" placeholder="New password" style="margin-top:8px">
+      <button class="btn-set" onclick="changeMyPassword()">Change Password</button>
+      <div class="msg" id="myPassMsg"></div>
+    </div>
+
     <div class="card">
       <label style="margin-top:0">New Username</label>
       <input type="text" id="newUsername" placeholder="e.g. jsmith">
@@ -267,14 +262,38 @@ async function cmd(action) {
   refresh();
 }
 
-async function setAll() {
+// Merged Apply Settings + Arm Schedule into one action.
+// Always applies course code / duration. Additionally arms a schedule
+// only if both date and time were provided.
+async function applyExamConfig() {
   const line1 = document.getElementById('line1').value;
   const duration = document.getElementById('duration').value;
+  const dateVal = document.getElementById('schedDate').value;
+  const timeVal = document.getElementById('schedTime').value;
+  const msg = document.getElementById('configMsg');
+  msg.textContent = '';
+
   const params = new URLSearchParams();
   if (line1) params.append('line1', line1);
   if (duration) params.append('duration', duration);
   const res = await fetch('/api/set', { method: 'POST', body: params });
   if (res.status === 401) { window.location.href = '/login'; return; }
+
+  if (dateVal && timeVal) {
+    const [y, mo, d] = dateVal.split('-').map(Number);
+    const [h, mi] = timeVal.split(':').map(Number);
+    const schedParams = new URLSearchParams();
+    schedParams.append('year', y);
+    schedParams.append('month', mo);
+    schedParams.append('day', d);
+    schedParams.append('hour', h);
+    schedParams.append('minute', mi);
+    await fetch('/api/schedule', { method: 'POST', body: schedParams });
+    msg.textContent = 'Settings applied and scheduled start armed.';
+  } else {
+    msg.textContent = 'Settings applied.';
+  }
+  msg.className = 'msg ok';
   refresh();
 }
 
@@ -301,27 +320,6 @@ async function msgAction(action) {
   const res = await fetch('/api/message', { method: 'POST', body: params });
   if (res.status === 401) { window.location.href = '/login'; return; }
   refresh();
-}
-
-async function armSchedule() {
-  const dateVal = document.getElementById('schedDate').value;
-  const timeVal = document.getElementById('schedTime').value;
-  if (!dateVal || !timeVal) { alert('Pick a date and time'); return; }
-  const [y, mo, d] = dateVal.split('-').map(Number);
-  const [h, mi] = timeVal.split(':').map(Number);
-  const params = new URLSearchParams();
-  params.append('year', y);
-  params.append('month', mo);
-  params.append('day', d);
-  params.append('hour', h);
-  params.append('minute', mi);
-  await fetch('/api/schedule', { method: 'POST', body: params });
-  alert('Schedule armed - timer will auto-start at the chosen time.');
-}
-
-async function cancelSchedule() {
-  await fetch('/api/schedule/cancel', { method: 'POST' });
-  alert('Schedule cancelled.');
 }
 
 async function loadQueue() {
