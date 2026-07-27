@@ -11,8 +11,8 @@
 static unsigned long lastPushMs    = 0;
 static unsigned long lastPollMs    = 0;
 static unsigned long lastLogPushMs = 0;
-static const unsigned long PUSH_INTERVAL_MS     = 3000;
-static const unsigned long POLL_INTERVAL_MS     = 3000;
+static const unsigned long PUSH_INTERVAL_MS     = 5000;
+static const unsigned long POLL_INTERVAL_MS     = 5000;
 static const unsigned long LOG_PUSH_INTERVAL_MS = 60000;
 
 static const char* stateToStr(TimerState s) {
@@ -33,6 +33,9 @@ static void pushStatus() {
   client.setInsecure();
 
   HTTPClient http;
+  http.setTimeout(8000);
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+
   String url = String(CLOUD_API_BASE) + "/api/status";
   if (!http.begin(client, url)) return;
   http.addHeader("Content-Type", "application/json");
@@ -51,7 +54,9 @@ static void pushStatus() {
 
   int code = http.POST(body);
   http.end();
-  if (code != 200) {
+  if (code == 200) {
+    Serial.println("Cloud push OK");
+  } else {
     Serial.print("Cloud push failed, code=");
     Serial.println(code);
   }
@@ -62,6 +67,9 @@ static void pushLogs() {
   client.setInsecure();
 
   HTTPClient http;
+  http.setTimeout(8000);
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+
   String url = String(CLOUD_API_BASE) + "/api/logs";
   if (!http.begin(client, url)) return;
   http.addHeader("Content-Type", "application/json");
@@ -75,7 +83,9 @@ static void pushLogs() {
 
   int code = http.POST(body);
   http.end();
-  if (code != 200) {
+  if (code == 200) {
+    Serial.println("Cloud log push OK");
+  } else {
     Serial.print("Cloud log push failed, code=");
     Serial.println(code);
   }
@@ -86,12 +96,19 @@ static void pollCommand() {
   client.setInsecure();
 
   HTTPClient http;
+  http.setTimeout(8000);
+  http.setFollowRedirects(HTTPC_FORCE_FOLLOW_REDIRECTS);
+
   String url = String(CLOUD_API_BASE) + "/api/command";
   if (!http.begin(client, url)) return;
   http.addHeader("x-device-secret", DEVICE_SECRET);
 
   int code = http.GET();
   if (code != 200) {
+    if (code != 401) {
+      Serial.print("Cloud poll failed, code=");
+      Serial.println(code);
+    }
     http.end();
     return;
   }
@@ -105,6 +122,9 @@ static void pollCommand() {
 
   if (doc["command"].isNull()) return;
   String cmd = doc["command"].as<String>();
+  Serial.print("Received cloud command: ");
+  Serial.println(cmd);
+
   JsonObject params = doc["params"];
 
   if (cmd == "start") {
@@ -179,8 +199,6 @@ static void pollCommand() {
   }
 }
 
-// Runs entirely on its own task - blocking HTTPS calls never stall
-// loop()/timerTick() on core 1.
 static void cloudSyncTask(void *param) {
   while (true) {
     if (wifiHasInternet()) {
