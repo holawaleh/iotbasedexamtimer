@@ -8,3 +8,4 @@ include/secrets.h
 .env
 include/secrets.cpp
 include/secrets.h
+exam-timer-cloud/node_modules/
