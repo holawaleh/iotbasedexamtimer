@@ -79,6 +79,21 @@ void drawCharBig(int charIndex, int topRow, int leftCol) {
   }
 }
 
+void drawCharMed(int charIndex, int topRow, int leftCol) {
+  for (int col = 0; col < 5; col++) {
+    uint8_t colBits = font5x7[charIndex][col];
+    for (int row = 0; row < 7; row++) {
+      bool on = (colBits >> row) & 0x01;
+      for (int dr = 0; dr < 2; dr++) {
+        int r = topRow + row * 2 + dr;
+        int c = leftCol + col;
+        if (r >= 0 && r < DISPLAY_ROWS && c >= 0 && c < DISPLAY_COLS)
+          framebuffer[r][c] = on;
+      }
+    }
+  }
+}
+
 void drawText(const char *text, int topRow, int leftCol) {
   int x = leftCol;
   for (int i = 0; text[i] != '\0'; i++) {
@@ -97,11 +112,30 @@ void drawTextBig(const char *text, int topRow, int leftCol) {
   }
 }
 
+void drawTextMed(const char *text, int topRow, int leftCol) {
+  int x = leftCol;
+  for (int i = 0; text[i] != '\0'; i++) {
+    int idx = charToIndex(text[i]);
+    if (idx >= 0) { drawCharMed(idx, topRow, x); x += 6; }
+    else x += 3;
+  }
+}
+
 int centerBig(const char *text) {
   int width = 0;
   for (int i = 0; text[i] != '\0'; i++) {
     int idx = charToIndex(text[i]);
     width += (idx >= 0) ? 11 : 4;
+  }
+  if (width > 0) width -= 1;
+  return (DISPLAY_COLS - width) / 2;
+}
+
+int centerMed(const char *text) {
+  int width = 0;
+  for (int i = 0; text[i] != '\0'; i++) {
+    int idx = charToIndex(text[i]);
+    width += (idx >= 0) ? 6 : 3;
   }
   if (width > 0) width -= 1;
   return (DISPLAY_COLS - width) / 2;
@@ -117,27 +151,58 @@ int centerSmall(const char *text) {
   return (DISPLAY_COLS - width) / 2;
 }
 
+int textWidthSmall(const char *text) {
+  int width = 0;
+  for (int i = 0; text[i] != '\0'; i++) {
+    int idx = charToIndex(text[i]);
+    width += (idx >= 0) ? 6 : 3;
+  }
+  return width;
+}
+
+void drawTextAuto(const char *text, int bandBaseRow) {
+  int bigWidth = 0, medWidth = 0;
+  for (int i = 0; text[i] != '\0'; i++) {
+    int idx = charToIndex(text[i]);
+    bigWidth += (idx >= 0) ? 11 : 4;
+    medWidth += (idx >= 0) ? 6 : 3;
+  }
+  if (bigWidth > 0) bigWidth -= 1;
+  if (medWidth > 0) medWidth -= 1;
+
+  if (bigWidth <= DISPLAY_COLS) {
+    int x = centerBig(text);
+    int topRow = bandBaseRow + (PANEL_ROWS - 14) / 2;
+    drawTextBig(text, topRow, x);
+  } else if (medWidth <= DISPLAY_COLS) {
+    int x = centerMed(text);
+    int topRow = bandBaseRow + (PANEL_ROWS - 14) / 2;
+    drawTextMed(text, topRow, x);
+  } else {
+    int x = centerSmall(text);
+    int topRow = bandBaseRow + (PANEL_ROWS - 7) / 2;
+    drawText(text, topRow, x);
+  }
+}
+
+void drawTextScroll(const char *text, int bandBaseRow, int offset) {
+  int topRow = bandBaseRow + (PANEL_ROWS - 7) / 2;
+  int x = offset;
+  for (int i = 0; text[i] != '\0'; i++) {
+    int idx = charToIndex(text[i]);
+    if (idx >= 0) {
+      if (x + 5 >= 0 && x < DISPLAY_COLS) {
+        drawChar(idx, topRow, x);
+      }
+      x += 6;
+    } else {
+      x += 3;
+    }
+  }
+}
+
 void clearBand(int rowOffset) {
   for (int r = rowOffset; r < rowOffset + PANEL_ROWS; r++)
     for (int c = 0; c < DISPLAY_COLS; c++)
       framebuffer[r][c] = 0;
-}
-
-void drawTextAuto(const char *text, int bandTop) {
-  int bigWidth = 0;
-  for (int i = 0; text[i] != '\0'; i++) {
-    int idx = charToIndex(text[i]);
-    bigWidth += (idx >= 0) ? 11 : 4;
-  }
-  if (bigWidth > 0) bigWidth -= 1;
-
-  if (bigWidth <= DISPLAY_COLS) {
-    // Big glyph is 14 rows tall; center in the 16-row band -> offset 1
-    int x = centerBig(text);
-    drawTextBig(text, bandTop + 1, x);
-  } else {
-    // Small glyph is 7 rows tall; center in the 16-row band -> offset 4
-    int x = centerSmall(text);
-    drawText(text, bandTop + 4, x);
-  }
 }

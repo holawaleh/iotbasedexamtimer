@@ -4,6 +4,7 @@
 #include "wifi_settings.h"
 #include "ntp_clock.h"
 #include "buzzer.h"
+#include "config.h"
 
 TimerState timerState = T_IDLE;
 unsigned long durationMs   = 60UL * 60UL * 1000UL;
@@ -50,11 +51,8 @@ void renderTimer() {
     if (h24 >= 0) {
       int h12 = h24 % 12;
       if (h12 == 0) h12 = 12;
-      snprintf(buf, sizeof(buf), "%d:%02d", h12, m);
+      snprintf(buf, sizeof(buf), "%d:%02d:%02d", h12, m, s);
     } else {
-      // Not synced yet / no network: show a live "alive" indicator
-      // instead of a static placeholder, so the panel visibly shows
-      // the system is running and waiting, not frozen or broken.
       static unsigned long lastAnim = 0;
       static int dotCount = 0;
       if (millis() - lastAnim >= 500) {
@@ -72,13 +70,20 @@ void renderTimer() {
   } else if (shouldBlink && !flashOn) {
     // blank frame during FINISHED blink-off phase only
 
-} else {
-    unsigned long totalMin = (remainingMs + 59999) / 60000;  // round up to next minute
-    char buf[8];
-    snprintf(buf, sizeof(buf), "%lu", totalMin);
-    int xPos = centerBig(buf);
-    drawTextBig(buf, 17, xPos);
+  } else {
+    unsigned long totalSec = remainingMs / 1000;
+    int hh = totalSec / 3600;
+    int mm = (totalSec % 3600) / 60;
+    int ss = totalSec % 60;
+    char buf[12];
+    if (hh > 0) {
+      snprintf(buf, sizeof(buf), "%d:%02d:%02d", hh, mm, ss);
+    } else {
+      snprintf(buf, sizeof(buf), "%d:%02d", mm, ss);
+    }
+    drawTextAuto(buf, 16);
   }
+
   buildShiftData();
 }
 
@@ -100,17 +105,30 @@ void renderBottom() {
       snprintf(buf, sizeof(buf), "--:--:----");
     }
     drawTextAuto(buf, 32);
+
+  } else if (bottomText.length() > 0) {
+    int w = textWidthSmall(bottomText.c_str());
+    if (w > DISPLAY_COLS) {
+      static unsigned long lastScrollMs = 0;
+      static int scrollOffset = DISPLAY_COLS;
+
+      if (millis() - lastScrollMs >= 60) {
+        lastScrollMs = millis();
+        scrollOffset--;
+        if (scrollOffset < -w) scrollOffset = DISPLAY_COLS;
+      }
+      drawTextScroll(bottomText.c_str(), 32, scrollOffset);
+    } else {
+      drawTextAuto(bottomText.c_str(), 32);
+    }
+
   } else {
     const char *msg;
-    if (bottomText.length() > 0) {
-      msg = bottomText.c_str();
-    } else {
-      switch (timerState) {
-        case T_RUNNING:  msg = warningActive ? "ALMOST UP" : "ACTIVE"; break;
-        case T_PAUSED:   msg = "PAUSED";  break;
-        case T_FINISHED: msg = "TIME UP"; break;
-        default:         msg = "";        break;
-      }
+    switch (timerState) {
+      case T_RUNNING:  msg = warningActive ? "ALMOST UP" : "ACTIVE"; break;
+      case T_PAUSED:   msg = "PAUSED";  break;
+      case T_FINISHED: msg = "TIME UP"; break;
+      default:         msg = "";        break;
     }
     drawTextAuto(msg, 32);
   }
@@ -210,6 +228,16 @@ void timerCancelSchedule() {
 void timerTick() {
   unsigned long now = millis();
 
+  // Scroll animation for long override messages runs on its own fast
+  // cadence, independent of the once-per-second gates used below.
+  if (bottomText.length() > 0 && timerState != T_IDLE) {
+    static unsigned long lastScrollRender = 0;
+    if (millis() - lastScrollRender >= 60) {
+      lastScrollRender = millis();
+      renderBottom();
+    }
+  }
+
   if (timerState == T_RUNNING) {
     unsigned long elapsed = now - lastTickMs;
     if (elapsed >= 1000) {
@@ -226,10 +254,10 @@ void timerTick() {
                          remainingMs <= (unsigned long)(durationMs * 0.3);
       if (nowWarning && !warningActive) {
         buzzerBeep2x();
-        renderBottom();  // reflect "ALMOST UP" status immediately
+        renderBottom();
       }
       if (!nowWarning && warningActive) {
-        renderBottom();  // clear "ALMOST UP" status if applicable
+        renderBottom();
       }
       warningActive = nowWarning;
 
@@ -246,7 +274,6 @@ void timerTick() {
     }
   }
 
-  // Only FINISHED blinks now
   if (timerState == T_FINISHED) {
     if (now - lastFlashMs >= 500) {
       lastFlashMs = now;
@@ -257,7 +284,6 @@ void timerTick() {
     flashOn = true;
   }
 
-  // Finished: beep for 5s total, then auto-return to idle
   if (timerState == T_FINISHED) {
     if (finishedBuzzerOn && (now - finishedAtMs >= 5000)) {
       buzzerOff();
@@ -274,7 +300,8 @@ void timerTick() {
   if (timerState == T_IDLE) {
     static unsigned long lastIdleTick = 0;
     if (now - lastIdleTick >= 1000) {
-      lastIdleTick = now;
+      lastIdleTick += 1000;
+      if (lastIdleTick == 0 || now - lastIdleTick > 2000) lastIdleTick = now;
       renderTop();
       renderTimer();
       renderBottom();

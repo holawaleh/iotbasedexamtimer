@@ -33,12 +33,11 @@ void setup() {
 
   webServerSetup();
   cloudSyncInit();
-
+  cloudSyncStartTask();
   Serial.println("=== EXAM TIMER ===");
 }
 
 void loop() {
-  cloudSyncTick();
   timerTick();
 
   if (Serial.available()) {

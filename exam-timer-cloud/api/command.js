@@ -1,6 +1,6 @@
-import { neon } from '@neondatabase/serverless';
+import { sql } from '../_lib/db.js';
+import { requireCloudStaffOrAdmin } from '../_lib/auth.js';
 
-const sql = neon(process.env.DATABASE_URL);
 const DEVICE_SECRET = process.env.DEVICE_SECRET;
 
 export default async function handler(req, res) {
@@ -27,9 +27,13 @@ export default async function handler(req, res) {
     return;
   }
 
-  // POST: a remote dashboard queues a new command for the ESP32 to pick up
+  // POST: queue a new command - now requires cloud auth (staff/admin only),
+  // closing the previously-open write access.
   if (req.method === 'POST') {
-    const { command, params } = req.body;
+    const session = await requireCloudStaffOrAdmin(req, res);
+    if (!session) return;
+
+    const { command, params } = req.body || {};
     if (!command) {
       res.status(400).json({ error: 'missing command' });
       return;

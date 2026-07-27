@@ -1,9 +1,9 @@
 #include "display_driver.h"
 #include "config.h"
 
-static uint8_t shiftX[4][256];
-static uint8_t shiftY[4][256];
-static uint8_t shiftZ[4][256];
+static uint8_t shiftX[SCAN_STATES][CHAIN_BITS];
+static uint8_t shiftY[SCAN_STATES][CHAIN_BITS];
+static uint8_t shiftZ[SCAN_STATES][CHAIN_BITS];
 
 static void buildBand(uint8_t dest[SCAN_STATES][CHAIN_BITS], int rowOffset) {
   memset(dest, 0, SCAN_STATES * CHAIN_BITS);
@@ -80,14 +80,11 @@ void displayInitPins() {
   digitalWrite(PIN_LAT,    HIGH);
   outputEnable(false);
 }
+
 void displayStartTask() {
   xTaskCreatePinnedToCore(
     displayRefreshTask,
     "DisplayRefresh",
-    4096,
-    NULL,
-    2,     // priority: was 24, now moderate
-    NULL,
-    1      // core: was 0, now 1 (away from WiFi's core 0 tasks)
+    4096, NULL, 12, NULL, 0
   );
 }
