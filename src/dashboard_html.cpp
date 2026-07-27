@@ -175,7 +175,7 @@ const char INDEX_HTML[] PROGMEM = R"rawliteral(
 
       <div class="card">
         <label style="margin-top:0">Bottom Message Override</label>
-        <input type="text" id="message" placeholder="leave empty for auto" maxlength="20">
+        <input type="text" id="message" placeholder="leave empty for auto" maxlength="120">
         <label>Timeout (seconds)</label>
         <input type="number" id="msgTimeout" placeholder="60" value="60" min="5" max="600">
         <button class="btn-set" onclick="setMessage()">Set Message</button>
