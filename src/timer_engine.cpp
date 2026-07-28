@@ -29,12 +29,28 @@ String bottomText = "";
 
 void renderTop() {
   clearBand(0);
+
   if (timerState == T_IDLE) {
     const char* msg = wifiHasInternet() ? "CONNECTED" : "NO NET";
     drawTextAuto(msg, 0);
+
   } else {
-    drawTextAuto(topLine1.c_str(), 0);
+    int w = textWidthSmall(topLine1.c_str());
+    if (w > DISPLAY_COLS) {
+      static unsigned long lastScrollMs = 0;
+      static int scrollOffset = DISPLAY_COLS;
+
+      if (millis() - lastScrollMs >= 60) {
+        lastScrollMs = millis();
+        scrollOffset--;
+        if (scrollOffset < -w) scrollOffset = DISPLAY_COLS;
+      }
+      drawTextScroll(topLine1.c_str(), 0, scrollOffset);
+    } else {
+      drawTextAuto(topLine1.c_str(), 0);
+    }
   }
+
   buildShiftData();
 }
 
@@ -230,11 +246,15 @@ void timerTick() {
 
   // Scroll animation for long override messages runs on its own fast
   // cadence, independent of the once-per-second gates used below.
-  if (bottomText.length() > 0 && timerState != T_IDLE) {
+  // Scroll animation for long override messages (row Z) and long course
+  // codes (row X) runs on its own fast cadence, independent of the
+  // once-per-second gates used below.
+  if (timerState != T_IDLE) {
     static unsigned long lastScrollRender = 0;
     if (millis() - lastScrollRender >= 60) {
       lastScrollRender = millis();
-      renderBottom();
+      if (bottomText.length() > 0) renderBottom();
+      if (textWidthSmall(topLine1.c_str()) > DISPLAY_COLS) renderTop();
     }
   }
 
